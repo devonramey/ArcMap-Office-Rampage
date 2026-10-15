@@ -1,0 +1,37 @@
+/* GitHub Actions browser smoke test for the playable FPS prototype. */
+const assert=require('node:assert/strict'), fs=require('node:fs'), path=require('node:path'), http=require('node:http');
+const {chromium}=require('playwright-core');
+const root=path.resolve(__dirname,'..');
+const types={'.html':'text/html','.js':'text/javascript','.css':'text/css'};
+const server=http.createServer((req,res)=>{
+ const url=decodeURIComponent((req.url||'/').split('?')[0]);
+ const filename=path.resolve(root,'.'+(url==='/'?'/index.html':url));
+ if(!filename.startsWith(root)||!fs.existsSync(filename)){res.writeHead(404);res.end();return}
+ res.setHeader('Content-Type',types[path.extname(filename)]||'text/plain');
+ fs.createReadStream(filename).pipe(res);
+});
+(async()=>{
+ await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+ const chrome=[process.env.CHROME_PATH,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(x=>x&&fs.existsSync(x));
+ assert.ok(chrome,'Chrome or Chromium required');
+ const browser=await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:960}});
+  const errors=[];page.on('pageerror',err=>errors.push(String(err)));
+  await page.goto('http://127.0.0.1:'+server.address().port+'/',{waitUntil:'load'});
+  await page.waitForFunction('window.ARCMAP_OFFICE_DEBUG',{timeout:30000});
+  assert.equal(await page.locator('#menu').isVisible(),true);
+  await page.locator('[data-weapon="shotgun"]').click();
+  await page.locator('#launch').click();
+  await page.waitForFunction('window.ARCMAP_OFFICE_DEBUG.game.phase==="running"',{timeout:10000});
+  const summary=await page.evaluate(()=>{
+    const d=window.ARCMAP_OFFICE_DEBUG;const s=d.game;
+    return {phase:s.phase,weapon:s.weapon,ammo:s.ammo,enemies:d.hostiles.length,targets:d.targets.length,props:d.props.length,solid:d.colliders.length,renderer:!!d.renderer.getContext()};
+  });
+  assert.equal(summary.phase,'running');assert.equal(summary.weapon,'shotgun');
+  assert.equal(summary.ammo,8);assert.equal(summary.enemies,12);assert.ok(summary.targets>=12&&summary.props>=5&&summary.solid>30);
+  await page.waitForTimeout(500);
+  assert.deepEqual(errors,[],'Browser exceptions: '+errors.join('\n'));
+  console.log('PASS - playable ArcMap FPS browser test:',JSON.stringify(summary));
+ }finally{await browser.close();server.close()}
+})().catch(e=>{console.error(e);server.close();process.exitCode=1});
