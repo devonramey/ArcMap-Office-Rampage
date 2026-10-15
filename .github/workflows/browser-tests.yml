@@ -1,7 +1,7 @@
 name: Browser gameplay validation
 on:
   push:
-    branches: [main]
+    branches: [main, development-v0.2-weapons]
     paths-ignore:
       - 'tests/CI_RESULT.txt'
       - 'tests/CI_BROWSER_OUTPUT.txt'
