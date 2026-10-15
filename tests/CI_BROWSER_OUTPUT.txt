@@ -1,5 +1,5 @@
 
-added 1 package in 2s
+added 1 package in 1s
 DEBUG FLOOR CONTINUATION: {"requested":2,"continuation":{"floor":2,"phase":"running","enemyCount":16,"loadedTitle":"FLOOR 02","pointer":true},"errors":[]}
 DEBUG FLOOR CONTINUATION: {"requested":3,"continuation":{"floor":3,"phase":"running","enemyCount":20,"loadedTitle":"FLOOR 03","pointer":true},"errors":[]}
 PASS - three-floor campaign transitions: [{"floor":1,"name":"THE CUBICLE FARM","enemies":12,"geometry":50,"props":6,"health":100,"killed":12,"campaignKills":12,"exitReady":true,"exitPhase":"transition"},{"floor":2,"name":"RECORDS & BREAK ROOM","enemies":16,"geometry":27,"props":7,"health":100,"killed":16,"campaignKills":28,"exitReady":true,"exitPhase":"transition"},{"floor":3,"name":"SERVER OPERATIONS","enemies":20,"geometry":34,"props":8,"health":100,"killed":20,"campaignKills":48,"exitReady":true,"exitPhase":"won"}]
