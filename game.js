@@ -1,14 +1,17 @@
-/* ArcMap Office Rampage v0.1. Three.js FPS, no server-side gameplay. */
+/* ArcMap Office Rampage v0.2. Three.js FPS, no server-side gameplay. */
 import * as THREE from './vendor/three.module.js';
 const $=s=>document.getElementById(s), clamp=THREE.MathUtils.clamp,rand=(a,b)=>a+Math.random()*(b-a), V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 const TOTAL=12,MINX=-19.4,MAXX=19.4,MINZ=-17.4,MAXZ=17.4;
 const WPN={
- rifle:{name:'ASSAULT RIFLE',clip:30,store:180,damage:25,rate:.112,reload:1.6,spread:.012,pellets:1,recoil:.17,auto:true},
- shotgun:{name:'PUMP SHOTGUN',clip:8,store:48,damage:16,rate:.84,reload:2.05,spread:.081,pellets:9,recoil:.40,auto:false},
- smg:{name:'COMPACT SMG',clip:40,store:260,damage:17,rate:.073,reload:1.38,spread:.028,pellets:1,recoil:.11,auto:true},
- revolver:{name:'HEAVY REVOLVER',clip:6,store:48,damage:63,rate:.53,reload:1.72,spread:.008,pellets:1,recoil:.36,auto:false}
+ rifle:{name:'ASSAULT RIFLE',damage:44,rate:.101,spread:.009,pellets:1,recoil:.19,auto:true,kind:'ballistic'},
+ shotgun:{name:'SEMI-AUTO SHOTGUN',damage:25,rate:.32,spread:.073,pellets:9,recoil:.40,auto:false,kind:'ballistic'},
+ smg:{name:'COMPACT SMG',damage:32,rate:.067,spread:.021,pellets:1,recoil:.115,auto:true,kind:'ballistic'},
+ flamethrower:{name:'FLAMETHROWER',damage:14,rate:.115,spread:.075,pellets:1,recoil:.035,auto:true,kind:'flame'},
+ minigun:{name:'ROTARY MINIGUN',damage:28,rate:.046,spread:.028,pellets:1,recoil:.082,auto:true,kind:'ballistic'},
+ laser:{name:'LASER RIFLE',damage:80,rate:.19,spread:.003,pellets:1,recoil:.055,auto:true,kind:'laser'},
+ cannon:{name:'HEAVY LASER CANNON',damage:165,rate:.55,spread:0,pellets:1,recoil:.30,auto:true,kind:'laser'}
 };
-const game={phase:'menu',weapon:'rifle',ammo:30,reserve:180,health:100,kills:0,elapsed:0,lastShot:-10,reloading:0,trigger:false,yaw:0,pitch:0,velocityY:0,grounded:true,recoil:0,bob:0,combo:0,hitAt:0,hitTime:0,damageTime:0,toastTime:0,subtitleTime:0,nearDoor:null,exitReady:false};
+const game={phase:'menu',weapon:'rifle',ammo:Infinity,reserve:Infinity,health:100,kills:0,elapsed:0,lastShot:-10,reloading:0,trigger:false,yaw:0,pitch:0,velocityY:0,grounded:true,recoil:0,bob:0,combo:0,hitAt:0,hitTime:0,damageTime:0,toastTime:0,subtitleTime:0,nearDoor:null,exitReady:false};
 const el={menu:$('menu'),pause:$('pause'),summary:$('summary'),hud:$('hud'),toast:$('toast'),health:$('health'),healthbar:$('healthbar'),ammo:$('ammo'),reserve:$('reserve'),weapon:$('weapon-name'),detail:$('objective-detail'),killbar:$('killbar'),clock:$('clock'),sub:$('subtitles'),hit:$('hitmarker'),vignette:$('damage-vignette'),map:$('minimap'),interaction:$('interaction'),reload:$('reload-hint')};
 const canvas=$('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -183,7 +186,7 @@ function makeGremlin(x,z,i,kind){
   limbs.push({pivot:arm,s,type:'arm'},{pivot:leg,s,type:'leg'});
  }
  const hp=kind==='brute'?230:kind==='crawler'?54:85;
- const e={root,torso,face,limbs,kind,hp,alive:true,scale,radius:kind==='brute'?.68:kind==='crawler'?.39:.50,speed:kind==='brute'?1.6:kind==='crawler'?4.1:2.5,attack:0,stun:0,hit:0,velocity:V(),anim:rand(0,7),dying:0};
+ const e={root,torso,face,limbs,kind,hp,alive:true,scale,radius:kind==='brute'?.68:kind==='crawler'?.39:.50,speed:kind==='brute'?1.6:kind==='crawler'?4.1:2.5,attack:0,stun:0,hit:0,burning:0,burnClock:0,velocity:V(),anim:rand(0,7),dying:0};
  function hitMesh(parent,w,h,d,x,y,z,part){
   const m=box(parent,w,h,d,new THREE.MeshBasicMaterial({visible:false}),x,y,z);
   m.userData.enemy=e;m.userData.part=part;targets.push(m);return m;
@@ -241,7 +244,10 @@ class Sound{
   for(let i=0;i<n;i++)arr[i]=(Math.random()*2-1)*(1-i/n);
   const s=c.createBufferSource(),g=c.createGain();g.gain.value=vol;s.buffer=b;s.connect(g).connect(c.destination);s.start();
  }
- shot(){const heavy=game.weapon==='shotgun'||game.weapon==='revolver';this.noise(heavy?.26:.14,heavy?.23:.14);this.tone(heavy?80:145,heavy?.25:.13,'sawtooth',heavy?.11:.07,40)}
+ shot(){const kind=WPN[game.weapon].kind,heavy=['shotgun','minigun','cannon'].includes(game.weapon);
+   if(kind==='flame'){this.noise(.09,.055);this.tone(110,.10,'sawtooth',.045,75);return}
+   if(kind==='laser'){this.tone(game.weapon==='cannon'?220:500,heavy?.32:.16,'sawtooth',heavy?.10:.062,heavy?62:900);return}
+   this.noise(heavy?.22:.10,heavy?.22:.13);this.tone(heavy?72:155,heavy?.18:.105,'sawtooth',heavy?.09:.06,40)}
  enemy(){this.tone(rand(270,530),.26,'sawtooth',.045,140)}
  hurt(){this.tone(105,.18,'sawtooth',.12,59)}
  click(){this.tone(660,.065,'triangle',.045,390)}
@@ -293,13 +299,18 @@ function updateEnemies(dt){
   e.root.rotation.y=THREE.MathUtils.lerp(e.root.rotation.y,Math.atan2(dx,dz),Math.min(1,dt*6));
   let vx=dx/(dist||1),vz=dz/(dist||1);
   if(!sees){const d=pathDirection(e.root.position.x,e.root.position.z);if(d){vx=d.x;vz=d.z}}
-  const speed=e.stun>0?0:e.speed*(dist<1.25?.08:1);
+  const speed=e.stun>0?0:e.speed*(dist<1.25?.08:1)*(e.burning>0?.68:1);
   const m=move(e.root.position.x,e.root.position.z,(vx*speed+e.velocity.x)*dt,(vz*speed+e.velocity.z)*dt,e.radius);
   e.root.position.x=m.x;e.root.position.z=m.z;
   if(dist<e.radius+1.0&&game.elapsed>e.attack&&sees){
     e.attack=game.elapsed+rand(.75,1.2);damagePlayer(e.kind==='brute'?20:e.kind==='crawler'?7:11);sound.enemy();
   }
   e.stun=Math.max(0,e.stun-dt);e.velocity.multiplyScalar(Math.pow(.90,dt*60));
+   if(e.burning>0){
+     e.burning=Math.max(0,e.burning-dt);e.burnClock-=dt;
+     if(e.burnClock<=0){e.burnClock=.37;hitEnemy(e,'torso',7,e.root.position.clone().add(V(0,1,0)),V(rand(-.5,.5),.15,rand(-.5,.5)).normalize());}
+     if(Math.random()<dt*12)particlesAt(e.root.position.clone().add(V(rand(-.4,.4),rand(.7,1.4),rand(-.25,.25))),1,0xff7138,1.3);
+   }
   if(e.hit>0){e.hit-=dt;if(e.hit<=0)e.face.material.map=expression('angry')}
   for(const l of e.limbs){
    l.pivot.rotation.x=dist>1.7?Math.sin(e.anim*(e.kind==='crawler'?16:10)+(l.s===1?0:Math.PI))*(l.type==='leg'?.48:.56):0;
@@ -308,7 +319,7 @@ function updateEnemies(dt){
  }
 }
 function particlesAt(pos,count,color=0xf0b36d,power=2){
- for(let i=0;i<count;i++){
+ for(let i=0;i<count&&particles.length<340;i++){
   const m=box(scene,rand(.04,.13),rand(.04,.13),rand(.04,.13),new THREE.MeshBasicMaterial({color}),pos.x,pos.y,pos.z);
   particles.push({mesh:m,vel:V(rand(-power,power),rand(.4,power),rand(-power,power)),life:rand(.3,.9)});
  }
@@ -405,9 +416,9 @@ function damagePlayer(n){
 function formatClock(t){return String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0')}
 function updateHUD(){
  el.health.textContent=Math.ceil(game.health);el.healthbar.style.width=game.health+'%';
- el.ammo.textContent=game.ammo;el.reserve.textContent=game.reserve;el.weapon.textContent=WPN[game.weapon].name;
+ el.ammo.textContent='∞';el.reserve.textContent='UNLIMITED';el.weapon.textContent=WPN[game.weapon].name;
  el.detail.textContent=game.kills===TOTAL?'Elevator unlocked • Reach the exit':'Hostiles eliminated: '+game.kills+' / '+TOTAL+' • Elevator locked';
- el.killbar.style.width=(game.kills/TOTAL*100)+'%';el.reload.textContent=game.reloading>0?'RELOADING…':'[DELETE / R] RELOAD';
+ el.killbar.style.width=(game.kills/TOTAL*100)+'%';el.reload.textContent='NO RELOADS • INFINITE SUPPLY';
 }
 function toast(s,t=1.7){el.toast.textContent=s;el.toast.classList.add('visible');game.toastTime=t}
 function subtitle(s,t=1.0){el.sub.textContent=s;game.subtitleTime=t}
@@ -418,7 +429,7 @@ function phase(p){
  el.hud.classList.toggle('hidden',p==='menu');
 }
 function weapon(name){
- game.weapon=name;game.ammo=WPN[name].clip;game.reserve=WPN[name].store;game.reloading=0;buildWeapon();updateHUD();
+ if(!WPN[name])return;game.weapon=name;game.ammo=Infinity;game.reserve=Infinity;game.reloading=0;buildWeapon();updateHUD();
 }
 function lockMouse(){if(document.pointerLockElement!==canvas)canvas.requestPointerLock?.().catch(()=>toast('CLICK THE WORLD TO ACTIVATE MOUSE LOOK',3))}
 function start(){
@@ -492,9 +503,7 @@ function update(dt){
  if(game.phase!=='running')return;
  game.elapsed+=dt;movement(dt);makeFlow();updateEnemies(dt);updateProps(dt);updateDoors(dt);updateParticles(dt);
  if(game.trigger&&WPN[game.weapon].auto)shoot();
- if(game.reloading>0){game.reloading-=dt;if(game.reloading<=0){
-  const count=Math.min(WPN[game.weapon].clip-game.ammo,game.reserve);game.ammo+=count;game.reserve-=count;game.reloading=0;sound.click();updateHUD();
- }}
+ // Infinite ammo on all weapon classes; never enter a reload state.
  if(game.cooldown>0){game.cooldown-=dt;if(game.cooldown<=0)flash.visible=false}
  game.hitTime=Math.max(0,game.hitTime-dt);el.hit.classList.toggle('flash',game.hitTime>0);
  game.damageTime=Math.max(0,game.damageTime-dt*1.5);el.vignette.style.opacity=game.damageTime;
@@ -525,10 +534,9 @@ document.addEventListener('keydown',e=>{
  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
  keys.add(e.code);if(game.phase!=='running'||e.repeat)return;
  if(e.code==='Space'&&game.grounded){game.grounded=false;game.velocityY=6.5}
- if(e.code==='Delete'||e.code==='KeyR')reload();
+ // Reload deliberately disabled; infinite ammunition for every weapon.
  if(e.code==='Enter'||e.code==='KeyE')interact();
- if(e.code==='Digit1')choose('rifle');if(e.code==='Digit2')choose('shotgun');
- if(e.code==='Digit3')choose('smg');if(e.code==='Digit4')choose('revolver');
+ if(e.code.startsWith('Digit')){const n=Number(e.code.slice(5));const choice=Object.keys(WPN)[n-1];if(choice)choose(choice);}
 });
 document.addEventListener('keyup',e=>keys.delete(e.code));
 document.addEventListener('mousemove',e=>{
