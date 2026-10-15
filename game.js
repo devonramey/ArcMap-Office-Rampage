@@ -343,26 +343,62 @@ function tracer(a,b){
  const g=new THREE.BufferGeometry().setFromPoints([a,b]),m=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffce85,transparent:true,opacity:.55}));
  scene.add(m);particles.push({mesh:m,life:.06,static:true});
 }
-function shoot(){
- if(game.phase!=='running'||game.reloading>0)return;
- const w=WPN[game.weapon];if(game.elapsed-game.lastShot<w.rate)return;
- if(game.ammo<=0){reload();return}
- game.lastShot=game.elapsed;game.ammo--;game.recoil+=w.recoil;ammoFlash();sound.shot();
- const origin=camera.position.clone(),base=direction();scene.updateMatrixWorld(true);
- for(let i=0;i<w.pellets;i++){
-  const dir=base.clone();dir.add(V(rand(-w.spread,w.spread),rand(-w.spread,w.spread),rand(-w.spread,w.spread))).normalize();
-  raycaster.set(origin,dir);raycaster.far=65;
-  const a=raycaster.intersectObjects(targets,false)[0],b=raycaster.intersectObjects(solidMeshes,false)[0];
-  if(a&&(!b||a.distance<b.distance)){
-    hitEnemy(a.object.userData.enemy,a.object.userData.part,w.damage,a.point,dir);tracer(origin,a.point);
-  }else if(b){particlesAt(b.point,2,0xf7d09c,1.4);tracer(origin,b.point)}
-  else tracer(origin,origin.clone().addScaledVector(dir,60));
+function laserBeam(a,b,heavy=false){
+ const v=b.clone().sub(a),len=v.length(),mid=a.clone().addScaledVector(v,.5);
+ if(len<.01)return;
+ for(const outer of [false,true]){
+   const size=outer?(heavy?.17:.095):(heavy?.065:.027);
+   const mat=new THREE.MeshBasicMaterial({color:heavy?(outer?0xae43ed:0xffc7fa):(outer?0x4decef:0x9bfff1),transparent:true,opacity:outer?.24:.96,depthWrite:false});
+   const beam=new THREE.Mesh(new THREE.CylinderGeometry(size,size,len,7),mat);
+   beam.position.copy(mid);beam.quaternion.setFromUnitVectors(V(0,1,0),v.clone().normalize());
+   scene.add(beam);particles.push({mesh:beam,life:heavy?.16:.105,static:true});
  }
- updateHUD();
 }
-function reload(){
- const w=WPN[game.weapon];if(game.reloading||game.ammo>=w.clip||game.reserve<=0||game.phase!=='running')return;
- game.reloading=w.reload;game.trigger=false;sound.click();subtitle('RELOADING');updateHUD();
+function flameShot(origin,forward,w){
+ const source=origin.clone().addScaledVector(forward,1.1).add(V(0,-.15,0));
+ for(let i=0;i<7;i++){
+   const pos=source.clone().addScaledVector(forward,rand(.1,2.0)).add(V(rand(-.3,.3),rand(-.17,.22),rand(-.3,.3)));
+   particlesAt(pos,1,i%3===0?0xffe579:i%2?0xff6b23:0xffa53e,rand(1.5,3.5));
+ }
+ for(const e of hostiles){
+   if(!e.alive)continue;
+   const middle=e.root.position.clone().add(V(0,e.kind==='crawler'?.65:1.12,0));
+   const delta=middle.clone().sub(origin),len=delta.length();
+   if(len>8.7||len<.2||delta.normalize().dot(forward)<.85)continue;
+   if(!visibility(camera.position.x,camera.position.z,e.root.position.x,e.root.position.z))continue;
+   if(e.lastFlame===undefined||game.elapsed-e.lastFlame>=.19){
+     e.lastFlame=game.elapsed;e.burning=Math.max(e.burning,2.4);e.burnClock=Math.max(.15,e.burnClock);
+     hitEnemy(e,'torso',w.damage,middle,forward);
+   }
+ }
+}
+function shoot(){
+ if(game.phase!=='running')return;
+ const w=WPN[game.weapon];if(game.elapsed-game.lastShot<w.rate)return;
+ game.lastShot=game.elapsed;game.recoil=Math.min(.68,game.recoil+w.recoil);ammoFlash();sound.shot();
+ const origin=camera.position.clone(),base=direction();scene.updateMatrixWorld(true);
+ if(w.kind==='flame'){flameShot(origin,base,w);return}
+ for(let i=0;i<w.pellets;i++){
+   const dir=base.clone().add(V(rand(-w.spread,w.spread),rand(-w.spread,w.spread),rand(-w.spread,w.spread))).normalize();
+   raycaster.set(origin,dir);raycaster.far=70;
+   const b=raycaster.intersectObjects(solidMeshes,false)[0];
+   const intersections=raycaster.intersectObjects(targets,false);
+   const heavy=game.weapon==='cannon',penetration=heavy?4:game.weapon==='laser'?2:1;
+   let end=b?b.point:origin.clone().addScaledVector(dir,70),hits=0;
+   const struck=new Set();
+   for(const hit of intersections){
+     if(b&&hit.distance>=b.distance)break;
+     const e=hit.object.userData.enemy;
+     if(!e.alive||struck.has(e))continue;
+     struck.add(e);hits++;end=hit.point;
+     hitEnemy(e,hit.object.userData.part,w.damage,hit.point,dir);
+     if(w.kind==='laser')particlesAt(hit.point,heavy?11:5,heavy?0xf7aaff:0x4bf5e6,heavy?3.2:2);
+     if(hits>=penetration)break;
+   }
+   if(!hits&&b)particlesAt(b.point,w.kind==='laser'?6:3,w.kind==='laser'?0x5ce9f3:0xf7d09c,1.6);
+   if(w.kind==='laser')laserBeam(origin.clone().addScaledVector(dir,.55),end,heavy);
+   else tracer(origin,end);
+ }
 }
 function grab(){
  raycaster.set(camera.position,direction());raycaster.far=3.3;
