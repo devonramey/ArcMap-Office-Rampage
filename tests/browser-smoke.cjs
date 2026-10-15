@@ -87,7 +87,11 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.locator('#floor-transition').isVisible(),true);
       assert.equal((await page.locator('#transition-name').textContent()).trim(),['','RECORDS & BREAK ROOM','SERVER OPERATIONS'][floor]);
       await page.locator('#continue-floor').click();
-      await page.waitForFunction(n=>window.ARCMAP_OFFICE_DEBUG.game.floor===n&&window.ARCMAP_OFFICE_DEBUG.game.phase==='running',floor+1);
+      await page.waitForTimeout(1400);
+      const continuation=await page.evaluate(()=>({floor:window.ARCMAP_OFFICE_DEBUG.game.floor,phase:window.ARCMAP_OFFICE_DEBUG.game.phase,enemyCount:window.ARCMAP_OFFICE_DEBUG.hostiles.length,loadedTitle:document.querySelector('#hud-floor')?.textContent,pointer:!!document.pointerLockElement}));
+      console.log('DEBUG FLOOR CONTINUATION:',JSON.stringify({requested:floor+1,continuation,errors}));
+      assert.equal(continuation.floor,floor+1,'Elevator continuation must load next floor');
+      assert.equal(continuation.phase,'running','Floor continuation should restore gameplay');
       assert.equal((await page.locator('#hud-floor').textContent()).trim(),'FLOOR 0'+(floor+1));
       assert.equal(await page.locator('#ammo').textContent(),'∞');
     }else{
