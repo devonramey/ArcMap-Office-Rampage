@@ -21,23 +21,27 @@ The game is entirely client-side and hosted as static files on GitHub Pages. It 
 | Right mouse hold / release | Grab a nearby office object / throw it |
 | Right Shift | Sprint |
 | Space | Jump |
-| Delete or R | Reload |
+| Delete or R | Unused (reloading removed) |
 | Enter or E | Open the door or take the exit elevator |
-| Mouse wheel / number keys 1–4 | Change weapons |
+| Mouse wheel / number keys 1–7 | Change weapons |
 | Escape | Pause and unlock the mouse |
 
 Optional WASD movement and left Shift sprint are supported, but **arrow keys are the default layout**. Click **Deploy Into Office** to capture your mouse pointer.
 
-## Prototype features (v0.1)
+## Prototype features (v0.2)
 
-- Pregame loadout menu: **assault rifle**, **pump shotgun**, **SMG**, and **revolver**.
+- Pregame loadout menu: **assault rifle**, **semi-automatic shotgun**, **SMG**, **flamethrower**, **minigun**, **laser rifle**, and **heavy laser cannon**. The revolver has been removed.
 - One furnished office floor: cubicles, workstations, conference space, filing cabinets, computers, plants, glass partitions, server racks, and fluorescent ceiling lighting.
 - **12 hostile ArcMap gremlins**, including runners, crawlers and one brute, with procedural faces and limbs.
-- Mouse aim, firearm muzzle effects, spreading shotgun pellets, weapon recoil, hit-part damage modifiers, and responsive health/ammo indicators.
+- Mouse aim, firearm muzzle effects, spreading shotgun pellets, weapon recoil, hit-part damage modifiers, and responsive health and infinite-ammo indicators.
 - AI office navigation, physics-inspired thrown objects, interactive door, minimap, combat objective, elevator exit, pause screen and mission results.
+- **Unlimited ammunition across all seven weapons. No magazines, reloads, ammo pickups, fuel limits or energy depletion.** Hold the mouse button for automatic weapons; click repeatedly for the semi-auto shotgun.
+- Fire-based cone damage and burn-over-time, spinning six-barrel minigun, penetrating laser beams, and substantially stronger firearm damage.
+- More detailed procedural first-person weapon models with barrel assemblies, rails, magazines, ammunition tanks, laser coils, sights, and hands.
+- Improved office materials with procedural carpet texture, warmer fluorescent lighting, wall trim, signage and finer detailing.
 - Synthetic game audio; all meshes, lighting and textures are created in JavaScript.
 
-**Scope:** This is an early playable prototype. Realistic visual polish, high-fidelity 3D ragdoll physics, precise navmesh AI, multiple floors, and production-quality audio are future enhancements, not features already completed.
+**Scope:** This remains an early browser prototype. The upgraded weapons and semi-realistic office are procedural geometry rather than photorealistic models. Full physically simulated enemy ragdolls, sophisticated navigation, additional floors, and professional audio remain future improvements.
 
 ## Technology and local testing
 
