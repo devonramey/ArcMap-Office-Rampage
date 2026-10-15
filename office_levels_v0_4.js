@@ -8,7 +8,7 @@ export const FLOORS=[
   spawns:[[-8,12,'runner'],[8,12,'runner'],[-15,10,'crawler'],[14,8,'runner'],[-2,7,'runner'],[3,5,'runner'],[-14,2,'runner'],[15,1,'crawler'],[-4,-1,'brute'],[5,-3,'runner'],[-15,-6,'runner'],[14,-6,'runner'],[-4,-9,'crawler'],[4,-10,'runner'],[-11,-13,'runner'],[8,-14,'brute']],
   props:[[-3.3,11.8,'monitor'],[3.1,9,'printer'],[-16.4,7.1,'crate'],[15.8,4,'printer'],[-3.5,-5,'crate'],[2.5,-12,'monitor'],[-11,-8,'crate']]},
  {number:3,name:'SERVER OPERATIONS',area:'DATACENTER / ENGINEERING',brief:'Security systems are collapsing. Fight through server racks and the maintenance corridor to secure the final exit.',accent:0x61daed,
-  spawns:[[-8,13,'runner'],[8,13,'crawler'],[-16,12,'runner'],[16,11,'runner'],[-3,9,'runner'],[4,8,'runner'],[-14,5,'crawler'],[13,5,'runner'],[-3,3,'brute'],[3,2,'runner'],[-17,-1,'runner'],[17,-2,'crawler'],[-4,-4,'runner'],[4,-5,'brute'],[-13,-8,'runner'],[13,-8,'runner'],[-3,-10,'crawler'],[3,-11,'runner'],[-12,-14,'runner'],[10,-14,'brute']],
+  spawns:[[-8,13,'runner'],[8,13,'crawler'],[-16,12,'runner'],[16,11,'runner'],[-3,9,'runner'],[5,8,'runner'],[-14,5,'crawler'],[13,5,'runner'],[-3,3,'brute'],[3,2,'runner'],[-17,-1,'runner'],[17,-2,'crawler'],[-4,-4,'runner'],[4,-5,'brute'],[-13,-8,'runner'],[13,-8,'runner'],[-3,-10,'crawler'],[3,-11,'runner'],[-12,-14,'runner'],[10,-14,'brute']],
   props:[[-4,13,'printer'],[4,13,'crate'],[-17,8,'monitor'],[17,8,'crate'],[-3,-1,'monitor'],[3,-6,'printer'],[14,-13,'crate'],[-14,-12,'printer']]}
 ];
 export const CAMPAIGN_TOTAL=FLOORS.reduce((n,f)=>n+f.spawns.length,0);
