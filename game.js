@@ -214,21 +214,101 @@ function spawnProps(){
   scene.add(g);props.push({mesh:g,type,vel:V(),spin:V(),ground:g.position.y,held:false});
  }
 }
-const gun=new THREE.Group();camera.add(gun);let flash=null;
+const gun=new THREE.Group();camera.add(gun);let flash=null,gunRotor=null;
+function cylinder(parent,radius,height,mat,x,y,z,segments=12,forward=false){
+ const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,height,segments),mat);
+ mesh.position.set(x,y,z);if(forward)mesh.rotation.x=Math.PI/2;
+ mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
+}
+function gunTube(parent,radius,length,mat,x,y,z,segments=12){return cylinder(parent,radius,length,mat,x,y,z,segments,true)}
 function buildWeapon(){
- gun.clear();gun.position.set(.31,-.35,-.58);
- const w=game.weapon,main=material(w==='shotgun'?0x765e48:w==='revolver'?0x8b9196:0x536e73,.38,.65),black=material(0x18262f,.39,.47);
- const len=w==='shotgun'?1.02:w==='revolver'?.52:w==='smg'?.62:.85;
- box(gun,.21,.21,len*.80,main,0,-.08,-len*.30,true);
- box(gun,.13,.13,len,black,0,-.07,-len*.67,true);
- box(gun,.08,.08,.49,steel,0,-.05,-len*1.28,true);
- box(gun,.14,.33,.20,black,0,-.34,-.18);
- box(gun,.12,.09,.34,black,0,.06,-.25);
- if(w==='revolver'){const c=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,.22,8),steel);c.rotation.z=Math.PI/2;c.position.set(0,-.12,-.37);gun.add(c)}
- if(w==='rifle'||w==='smg')box(gun,.13,.28,.15,black,0,-.30,-.42);
- if(w==='shotgun')box(gun,.2,.15,.40,wood,0,-.11,-.24);
- box(gun,.17,.22,.27,material(0xa58c75,.87),.13,-.36,-.09);
- flash=new THREE.Mesh(new THREE.SphereGeometry(.10,6,4),new THREE.MeshBasicMaterial({color:0xffd3a0}));flash.position.set(0,-.05,-len*1.52);flash.visible=false;gun.add(flash);
+ for(const mesh of gun.children){mesh.traverse?.(o=>{if(o.isMesh)o.geometry.dispose()})}
+ gun.clear();gunRotor=null;gun.position.set(.34,-.39,-.52);gun.rotation.set(0,0,0);
+ const w=game.weapon;
+ const steelDark=material(0x202832,.37,.77),steelLite=material(0x53616c,.29,.84),steelBright=material(0x8e9ba1,.27,.89);
+ const rubber=material(0x151d24,.84,.08),grip=material(0x302e29,.93,.12),tan=material(0x86745f,.71,.1);
+ const warning=material(0xd68f47,.38,.5),neon=new THREE.MeshStandardMaterial({color:0x236c73,emissive:0x18ffdd,emissiveIntensity:1.8,metalness:.32,roughness:.2});
+ const violet=new THREE.MeshStandardMaterial({color:0x513d79,emissive:0xce4dff,emissiveIntensity:1.5,metalness:.35,roughness:.18});
+ const heavy=w==='minigun'||w==='cannon';
+ const len=w==='shotgun'?1.25:w==='minigun'?1.23:w==='flamethrower'?1.06:w==='cannon'?1.22:w==='smg'?.72:1.02;
+ // Receiver assembly, slide, stock, a separate grip, trigger housing and sight rail.
+ box(gun,heavy?.36:.245,.23,len*.66,steelDark,0,-.065,-.29,true);
+ box(gun,heavy?.28:.225,.092,len*.70,steelLite,0,.086,-.35,true);
+ box(gun,.18,.08,len*.38,rubber,0,-.115,-.12,true);
+ box(gun,.155,.35,.24,grip,0,-.36,-.06,true);
+ box(gun,.10,.14,.16,steelDark,0,-.18,.055);
+ box(gun,.14,.20,.22,rubber,.01,-.31,.23);
+ box(gun,.11,.06,len*.52,steelBright,0,.15,-.40,true);
+ // Front and rear iron sights.
+ box(gun,.075,.13,.073,steelDark,0,.23,-.19);
+ box(gun,.06,.11,.063,steelDark,0,.21,-len+.11);
+ for(const side of [-1,1]){
+   box(gun,.016,.11,len*.26,steelLite,side*(heavy?.19:.135),-.04,-.51);
+   box(gun,.025,.045,len*.22,rubber,side*(heavy?.195:.14),-.12,-.51);
+ }
+ // Receiver pins and mechanical screws.
+ for(const z of [-.11,-.29,-.45])for(const side of [-1,1])
+   cylinder(gun,.019,.015,steelBright,side*(heavy?.185:.13),-.035,z,8);
+ if(w==='rifle'||w==='smg'||w==='laser'){
+   box(gun,.18,.32,.18,steelDark,0,-.35,-.44,true);
+   box(gun,.19,.07,.28,steelLite,0,-.48,-.49,true);
+   box(gun,.27,.19,.24,rubber,0,-.08,.25,true);
+   box(gun,.24,.10,.27,steelLite,0,.115,-.20);
+ }
+ if(w==='shotgun'){
+   // Broad double-piece shroud, tubular magazine and semi-auto gas assembly.
+   gunTube(gun,.069,.96,steelDark,0,-.055,-.96,14);
+   gunTube(gun,.052,.89,steelBright,0,-.185,-.91,12);
+   box(gun,.30,.155,.59,tan,0,-.125,-.55,true);
+   for(let z=-.79;z<-.3;z+=.095)box(gun,.28,.013,.016,grip,0,-.05,z);
+   box(gun,.11,.10,.17,warning,.13,-.07,-.13);
+ }else if(w==='minigun'){
+   const rotor=new THREE.Group();rotor.position.set(0,-.035,-.35);gun.add(rotor);gunRotor=rotor;
+   const positions=6;for(let i=0;i<positions;i++){
+     const a=i*2*Math.PI/positions,x=Math.cos(a)*.137,y=Math.sin(a)*.137;
+     gunTube(rotor,.036,.94,steelBright,x,y,-.56,9);
+     gunTube(rotor,.053,.16,steelDark,x,y,-1.10,9);
+   }
+   for(const z of [-.16,-.78]){
+     const ring=new THREE.Mesh(new THREE.TorusGeometry(.18,.047,8,24),steelDark);ring.position.z=z;rotor.add(ring);
+   }
+   cylinder(gun,.25,.35,steelLite,0,-.06,-.16,16,true);
+   box(gun,.26,.26,.33,warning,.0,-.38,.10,true);
+   box(gun,.13,.32,.27,steelDark,0,-.53,.10,true);
+ }else if(w==='flamethrower'){
+   gunTube(gun,.125,.81,steelLite,0,-.055,-.82,14);
+   gunTube(gun,.092,.38,steelDark,0,-.055,-1.15,14);
+   for(const side of [-1,1]){
+     cylinder(gun,.118,.49,warning,side*.19,-.29,.15,12);
+     cylinder(gun,.119,.05,steelDark,side*.19,-.03,.15,12);
+     const pipe=new THREE.Mesh(new THREE.TorusGeometry(.25,.035,8,20,Math.PI*.85),rubber);
+     pipe.rotation.set(Math.PI*.5,.0,side*.2);pipe.position.set(side*.13,-.16,-.32);gun.add(pipe);
+   }
+   box(gun,.31,.05,.11,warning,0,.08,-.99);
+ }else if(w==='laser'||w==='cannon'){
+   const glow=w==='cannon'?violet:neon;
+   gunTube(gun,w==='cannon'?.15:.09,.75,steelLite,0,-.055,-.89,14);
+   for(let i=0;i<5;i++){
+     const z=-.52-i*.115;
+     const ring=new THREE.Mesh(new THREE.TorusGeometry(w==='cannon'?.21:.135,.032,9,20),i%2?steelDark:glow);
+     ring.position.set(0,-.055,z);gun.add(ring);
+   }
+   const cell=box(gun,.30,.25,.36,glow,0,-.30,-.37,true);
+   cell.material=glow;
+   gunTube(gun,w==='cannon'?.115:.07,.20,glow,0,-.055,-1.28,12);
+   box(gun,.26,.07,.25,steelDark,0,.11,.06);
+ }
+ if(w==='cannon'){box(gun,.31,.25,.57,steelDark,0,-.06,-.84,true);gunTube(gun,.12,.28,violet,0,-.05,-1.29,12);}
+ if(w==='rifle'||w==='smg')gunTube(gun,w==='rifle'?.06:.072,len*.69,steelDark,0,-.062,-len*.89,12);
+ const muzzle=w==='minigun'?-1.40:w==='flamethrower'?-1.32:w==='cannon'?-1.43:w==='shotgun'?-1.50:w==='laser'?-1.42:-len*1.22;
+ flash=new THREE.Mesh(new THREE.SphereGeometry(w==='shotgun'?.15:heavy?.14:.088,10,6),new THREE.MeshBasicMaterial({color:w==='laser'?0x65ffed:w==='cannon'?0xffa0ed:w==='flamethrower'?0xff9d2f:0xffd0a0,transparent:true,opacity:.95}));
+ flash.position.set(0,-.06,muzzle);flash.visible=false;gun.add(flash);
+ // Gloved support hand and forearm for a recognizable first-person held-weapon silhouette.
+ const glove=material(0x292f31,.94),sleeve=material(0x485762,.85);
+ box(gun,.24,.18,.34,glove,-.25,-.30,-.46,true);
+ box(gun,.27,.23,.45,sleeve,-.32,-.44,-.25,true);
+ box(gun,.22,.18,.29,glove,.12,-.42,.05,true);
+ box(gun,.25,.23,.36,sleeve,.22,-.54,.22,true);
 }
 class Sound{
  constructor(){this.ctx=null}
@@ -523,6 +603,7 @@ function movement(dt){
  camera.rotation.set(game.pitch,game.yaw,0);
  gun.position.y=-.35+Math.sin(game.bob)*.015+game.recoil*.06;
  gun.position.z=-.58+game.recoil*.25;gun.rotation.x=-game.recoil*.7;
+ if(gunRotor)gunRotor.rotation.z+=(game.trigger&&game.weapon==='minigun'?dt*29:dt*2.2);
  game.recoil=Math.max(0,game.recoil-dt*2.6);
 }
 function map(){
