@@ -1,0 +1,47 @@
+name: Browser gameplay validation
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'tests/CI_RESULT.txt'
+      - 'tests/CI_BROWSER_OUTPUT.txt'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  browser-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        id: syntax
+        continue-on-error: true
+        run: |
+          node --check game.js
+          node --check tests/browser-smoke.cjs
+      - name: Real browser smoke test
+        id: browser
+        if: steps.syntax.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set +e
+          (npm install --no-save --no-audit --no-fund playwright-core@latest && node tests/browser-smoke.cjs) > tests/CI_BROWSER_OUTPUT.txt 2>&1
+          code=$?
+          cat tests/CI_BROWSER_OUTPUT.txt
+          exit "$code"
+      - name: Record status in repository
+        if: always()
+        env:
+          SYNTAX: ${{ steps.syntax.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
+        run: |
+          printf 'Commit: %s\nSyntax: %s\nBrowser: %s\n' "$GITHUB_SHA" "$SYNTAX" "$BROWSER" > tests/CI_RESULT.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/CI_RESULT.txt tests/CI_BROWSER_OUTPUT.txt
+          git commit -m 'Record latest Office Rampage browser test [skip ci]' || true
+          git push origin HEAD:${GITHUB_REF_NAME}
+          test "$SYNTAX" = success && test "$BROWSER" = success
