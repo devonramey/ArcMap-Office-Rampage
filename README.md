@@ -28,7 +28,7 @@ The game is entirely client-side and hosted as static files on GitHub Pages. It 
 
 Optional WASD movement and left Shift sprint are supported, but **arrow keys are the default layout**. Click **Deploy Into Office** to capture your mouse pointer.
 
-## Prototype features (v0.2)
+## Prototype features (v0.3)
 
 - Pregame loadout menu: **assault rifle**, **semi-automatic shotgun**, **SMG**, **flamethrower**, **minigun**, **laser rifle**, and **heavy laser cannon**. The revolver has been removed.
 - One furnished office floor: cubicles, workstations, conference space, filing cabinets, computers, plants, glass partitions, server racks, and fluorescent ceiling lighting.
@@ -42,6 +42,24 @@ Optional WASD movement and left Shift sprint are supported, but **arrow keys are
 - Synthetic game audio; all meshes, lighting and textures are created in JavaScript.
 
 **Scope:** This remains an early browser prototype. The upgraded weapons and semi-realistic office are procedural geometry rather than photorealistic models. Full physically simulated enemy ragdolls, sophisticated navigation, additional floors, and professional audio remain future improvements.
+
+
+## v0.3: projectile visuals and sound redesign
+
+- True moving **3D bullet models** and bright traveling projectile streaks launched from the gun muzzle, with visible travel at rest, rather than 0.06-second stationary ray lines. Damage calculation remains immediate (hitscan) for responsive FPS gameplay.
+- Rifle, SMG, shotgun and minigun eject visible physical-style shell casings. Bullet impacts emit round sparks instead of cubes.
+- The flamethrower now renders overlapping semi-transparent flame and smoke sprites with expanding turbulence, near-muzzle light, and burning enemies. The old square flame particles are removed.
+- Laser weapons produce glowing core-and-halo beams; the muzzle flash is a layered flare instead of a solid sphere.
+- A new Web Audio sound system provides **distinct synthesized** sounds for each ballistic weapon, laser blasts, minigun rotary motor and a continuous flamethrower roar. The audio unlocks when clicking Start and should be heard if browser/device audio is enabled.
+- These are generated game sounds. They are **not actual recordings of firearms**, and future audio releases could introduce CC0 actor/field recordings.
+- Existing infinite ammunition, no reloads, arrow-key movement, mouse aim and object grabbing remain intact.
+- Project modules: `weapon_visuals_v0_3.js` and `weapon_audio_v0_3.js`, both loaded as local ES modules, offline-capable with the rest of the repository.
+
+### Level roadmap
+
+- **v0.4 target:** 3 distinct playable floors, elevator transitions, different layouts and enemy encounters.
+- **v0.5 target:** server room and records floor, new gremlin varieties.
+- **v0.6 target:** executive floor, boss and campaign completion. These are planned additions and are **not implemented in v0.3**.
 
 ## Technology and local testing
 
