@@ -20,3 +20,25 @@ h1{font-size:clamp(67px,7.3vw,127px);margin:26px 0 20px;letter-spacing:-.075em}
 @media(max-width:1150px){.mission-card{display:none}.menu-content{width:min(950px,calc(100% - 36px))}}
 @media(max-height:780px){.weapon-tile{min-height:116px}.weapon-icon{height:38px;font-size:32px}h1{font-size:70px;margin:14px 0 12px}.lede{margin:12px 0}.mission-card{display:none}}
 @media(max-width:700px){.loadout{grid-template-columns:repeat(2,minmax(0,1fr))}.weapon-tile{min-height:110px}.weapon-icon{height:32px}.menu-content{margin:20px auto}.menu-foot{display:none}}
+
+/* v0.4 full office campaign, immersive lift briefing and per-floor status */
+#floor-transition{background:linear-gradient(125deg,rgba(5,13,21,.97),rgba(8,20,29,.88)),radial-gradient(circle at 70% 20%,#284a59,#08121c)}
+.transition-panel{width:min(620px,calc(100vw - 30px));max-width:620px!important;background:linear-gradient(155deg,#172735f2,#09131ded)!important;border:1px solid #6a94a9!important;box-shadow:0 30px 130px #000b,inset 0 1px #ffffff1d}
+.transition-panel h2{font-size:clamp(35px,4.6vw,65px);line-height:1;letter-spacing:-.055em;margin:10px 0 20px}
+.transition-panel .eyebrow{font-size:11px;color:#92dbcf;letter-spacing:.13em}
+.transition-rail{display:flex;gap:8px;margin:22px 0 18px}
+.transition-rail span{display:flex;align-items:center;justify-content:center;height:29px;width:38px;border:1px solid #516877;color:#7c96a4;font-size:11px;font-weight:900}
+.transition-rail span:nth-child(2){border-color:#ffbf82;color:#ffc787;background:#ffb86916}
+.transition-kicker{font-size:13px;font-weight:900;color:#ffbf82;letter-spacing:.24em;margin:0}
+.transition-panel>p:not(.transition-kicker):not(.transition-kills):not(.hint){color:#afc4d0;line-height:1.55;font-size:14px}
+.transition-summary{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #51636b;border-bottom:1px solid #51636b;margin:20px 0;padding:15px 0;gap:16px}
+.transition-summary>div{display:flex;flex-direction:column;gap:10px}
+.transition-summary small{font-size:10px;letter-spacing:.09em;color:#8da6b4}
+.transition-summary strong{font-size:18px;color:#eef9f6;letter-spacing:-.02em}
+.transition-kills{font-size:12px;font-weight:800;color:#f7b675;letter-spacing:.08em;margin-bottom:20px}
+.transition-panel .launch{width:100%;margin-top:5px}
+.transition-panel .ghost{width:100%}
+.menu-campaign{font-size:10px;letter-spacing:.21em;font-weight:900;color:#dcb37b;margin:12px 0 0}
+.hud-mark b#hud-floor{color:#a5f1d7}
+#floor-location{font-size:10px;color:#f5cb91}
+@media(max-height:680px){.transition-panel{padding:16px}.transition-summary{margin:11px 0}.transition-rail{margin:10px 0}.transition-panel h2{margin:6px 0;font-size:38px}}
