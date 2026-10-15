@@ -34,7 +34,12 @@ const server=http.createServer((req,res)=>{
       d.shoot();
       counts.push({name:s.weapon,ammo:s.ammo,damage:d.WPN[s.weapon].damage});
     }
-    return {phase:s.phase,initialWeapon:'shotgun',initialAmmo,weapons:keys,counts,enemies:d.hostiles.length,targets:d.targets.length,props:d.props.length,solid:d.colliders.length,renderer:!!d.renderer.getContext()};
+    const fx={...d.vfx.stats,active:d.vfx.active};
+    const audioShots=d.sound.recentShots,contextReady=!!d.sound.ctx;
+    d.sound.update('flamethrower',true,'running');const flameLoop=d.sound.loopType;
+    d.sound.update('minigun',true,'running');const rotaryLoop=d.sound.loopType;
+    d.sound.update('rifle',false,'running');const soundStopped=d.sound.loopType===null;
+    return {phase:s.phase,initialWeapon:'shotgun',initialAmmo,weapons:keys,counts,enemies:d.hostiles.length,targets:d.targets.length,props:d.props.length,solid:d.colliders.length,renderer:!!d.renderer.getContext(),fx,audioShots,contextReady,flameLoop,rotaryLoop,soundStopped};
   });
   assert.equal(summary.phase,'running');assert.equal(summary.initialWeapon,'shotgun');
   assert.equal(summary.initialAmmo,Infinity);
@@ -44,6 +49,15 @@ const server=http.createServer((req,res)=>{
   assert.equal(summary.enemies,12);assert.ok(summary.targets>=12&&summary.props>=5&&summary.solid>30);
   assert.equal(await page.locator('#ammo').textContent(),'∞');
   assert.equal(await page.locator('#reload-hint').textContent(),'NO RELOADS • INFINITE SUPPLY');
+  assert.ok(summary.fx.tracers>=4,'Visible moving 3D bullets should spawn for the firearms');
+  assert.ok(summary.fx.flames>=8,'Flamethrower should spawn soft flame sprites');
+  assert.ok(summary.fx.beams>=4,'Laser weapons should create 3D energy beams');
+  assert.ok(summary.fx.casings>=3,'Ballistic weapons should eject cases');
+  assert.ok(summary.fx.active>0,'Active weapon projectile effects should persist beyond the firing frame');
+  assert.ok(summary.contextReady&&summary.audioShots>=7,'Weapon audio engine should start after clicking Deploy');
+  assert.equal(summary.flameLoop,'flamethrower');
+  assert.equal(summary.rotaryLoop,'minigun');
+  assert.equal(summary.soundStopped,true,'Continuous weapon sounds must stop when firing ends');
   await page.waitForTimeout(500);
   assert.deepEqual(errors,[],'Browser exceptions: '+errors.join('\n'));
   console.log('PASS - playable ArcMap FPS browser test:',JSON.stringify(summary));
