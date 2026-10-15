@@ -58,8 +58,48 @@ const server=http.createServer((req,res)=>{
   assert.equal(summary.flameLoop,'flamethrower');
   assert.equal(summary.rotaryLoop,'minigun');
   assert.equal(summary.soundStopped,true,'Continuous weapon sounds must stop when firing ends');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(200);
+  // Simulate legitimate damage processing rather than bypassing the combat and mission logic.
+  // A completed floor must unlock the elevator, enter the briefing UI, and load next geometry.
+  const floors=[];
+  for(let floor=1;floor<=3;floor++){
+    const result=await page.evaluate(()=>{
+      const d=window.ARCMAP_OFFICE_DEBUG,s=d.game;
+      const initial={floor:s.floor,name:d.FLOORS[s.floor-1].name,enemies:d.hostiles.length,geometry:d.colliders.length,props:d.props.length,health:s.health};
+      for(const enemy of [...d.hostiles]){
+        if(enemy.alive)d.hitEnemy(enemy,'torso',10000,enemy.root.position.clone().add(new d.camera.position.constructor(0,1,0)),new d.camera.position.constructor(0,0,-1));
+      }
+      initial.killed=s.kills;initial.campaignKills=s.campaignKills;initial.exitReady=s.exitReady;
+      d.camera.position.set(0,1.65,-16);
+      d.interact();
+      initial.exitPhase=s.phase;
+      return initial;
+    });
+    floors.push(result);
+    assert.equal(result.floor,floor);
+    assert.equal(result.enemies,[12,16,20][floor-1],'Wrong enemy count on floor '+floor);
+    assert.equal(result.killed,result.enemies,'Clear objective failed');
+    assert.equal(result.exitReady,true,'Elevator did not unlock');
+    assert.ok(result.geometry>20,'Each floor must have world geometry and collisions');
+    assert.ok(result.props>=5,'Each floor must have throwable items');
+    if(floor<3){
+      assert.equal(result.exitPhase,'transition','Elevator must display floor briefing');
+      assert.equal(await page.locator('#floor-transition').isVisible(),true);
+      assert.equal((await page.locator('#transition-name').textContent()).trim(),['','RECORDS & BREAK ROOM','SERVER OPERATIONS'][floor]);
+      await page.locator('#continue-floor').click();
+      await page.waitForFunction(n=>window.ARCMAP_OFFICE_DEBUG.game.floor===n&&window.ARCMAP_OFFICE_DEBUG.game.phase==='running',floor+1);
+      assert.equal((await page.locator('#hud-floor').textContent()).trim(),'FLOOR 0'+(floor+1));
+      assert.equal(await page.locator('#ammo').textContent(),'∞');
+    }else{
+      assert.equal(result.exitPhase,'won','Last elevator must complete campaign');
+      assert.equal(await page.locator('#summary').isVisible(),true);
+      assert.equal((await page.locator('#summary-title').textContent()).trim(),'BUILDING CLEARED');
+      assert.equal((await page.locator('#result-kills').textContent()).trim(),'48');
+    }
+  }
+  assert.deepEqual(floors.map(x=>x.campaignKills),[12,28,48],'Campaign kills should persist between levels');
   assert.deepEqual(errors,[],'Browser exceptions: '+errors.join('\n'));
+  console.log('PASS - three-floor campaign transitions:',JSON.stringify(floors));
   console.log('PASS - playable ArcMap FPS browser test:',JSON.stringify(summary));
  }finally{await browser.close();server.close()}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1});
