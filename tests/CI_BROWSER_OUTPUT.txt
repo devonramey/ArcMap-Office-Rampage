@@ -1,7 +1,18 @@
 
 added 1 package in 2s
-page.waitForFunction: Timeout 30000ms exceeded.
-    at /home/runner/work/ArcMap-Office-Rampage/ArcMap-Office-Rampage/tests/browser-smoke.cjs:90:18 {
-  log: [],
-  name: 'TimeoutError'
+DEBUG FLOOR CONTINUATION: {"requested":2,"continuation":{"floor":2,"phase":"running","enemyCount":16,"loadedTitle":"FLOOR 02","pointer":true},"errors":[]}
+DEBUG FLOOR CONTINUATION: {"requested":3,"continuation":{"floor":3,"phase":"transition","enemyCount":5,"loadedTitle":"FLOOR 02","pointer":false},"errors":["Error: Floor 3 enemy spawn collides at 4,8"]}
+AssertionError [ERR_ASSERTION]: Floor continuation should restore gameplay
++ actual - expected
+
++ 'transition'
+- 'running'
+
+    at /home/runner/work/ArcMap-Office-Rampage/ArcMap-Office-Rampage/tests/browser-smoke.cjs:94:14 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'transition',
+  expected: 'running',
+  operator: 'strictEqual',
+  diff: 'simple'
 }
