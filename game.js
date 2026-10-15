@@ -1,5 +1,7 @@
-/* ArcMap Office Rampage v0.2. Three.js FPS, no server-side gameplay. */
+/* ArcMap Office Rampage v0.3. Three.js FPS, no server-side gameplay. */
 import * as THREE from './vendor/three.module.js';
+import {WeaponVisuals} from './weapon_visuals_v0_3.js';
+import {WeaponAudio} from './weapon_audio_v0_3.js';
 const $=s=>document.getElementById(s), clamp=THREE.MathUtils.clamp,rand=(a,b)=>a+Math.random()*(b-a), V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
 const TOTAL=12,MINX=-19.4,MAXX=19.4,MINZ=-17.4,MAXZ=17.4;
 const WPN={
@@ -270,6 +272,7 @@ function spawnProps(){
  }
 }
 const gun=new THREE.Group();camera.add(gun);let flash=null,gunRotor=null;
+const vfx=new WeaponVisuals(THREE,scene,camera);
 function cylinder(parent,radius,height,mat,x,y,z,segments=12,forward=false){
  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,height,segments),mat);
  mesh.position.set(x,y,z);if(forward)mesh.rotation.x=Math.PI/2;
@@ -358,6 +361,7 @@ function buildWeapon(){
  const muzzle=w==='minigun'?-1.40:w==='flamethrower'?-1.32:w==='cannon'?-1.43:w==='shotgun'?-1.50:w==='laser'?-1.42:-len*1.22;
  flash=new THREE.Mesh(new THREE.SphereGeometry(w==='shotgun'?.15:heavy?.14:.088,10,6),new THREE.MeshBasicMaterial({color:w==='laser'?0x65ffed:w==='cannon'?0xffa0ed:w==='flamethrower'?0xff9d2f:0xffd0a0,transparent:true,opacity:.95}));
  flash.position.set(0,-.06,muzzle);flash.visible=false;gun.add(flash);
+  gun.userData.muzzleZ=muzzle;
  // Gloved support hand and forearm for a recognizable first-person held-weapon silhouette.
  const glove=material(0x292f31,.94),sleeve=material(0x485762,.85);
  box(gun,.24,.18,.34,glove,-.25,-.30,-.46,true);
@@ -365,27 +369,8 @@ function buildWeapon(){
  box(gun,.22,.18,.29,glove,.12,-.42,.05,true);
  box(gun,.25,.23,.36,sleeve,.22,-.54,.22,true);
 }
-class Sound{
- constructor(){this.ctx=null}
- unlock(){const A=window.AudioContext||window.webkitAudioContext;if(!A)return;if(!this.ctx)this.ctx=new A();if(this.ctx.state==='suspended')this.ctx.resume().catch(()=>{})}
- tone(f,d=.13,shape='sawtooth',vol=.07,end=null){
-  if(!this.ctx)return;const c=this.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();
-  o.type=shape;o.frequency.setValueAtTime(Math.max(f,35),t);if(end)o.frequency.exponentialRampToValueAtTime(Math.max(30,end),t+d);
-  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(g).connect(c.destination);o.start(t);o.stop(t+d+.02)
- }
- noise(d=.14,vol=.12){
-  if(!this.ctx)return;const c=this.ctx,n=Math.ceil(c.sampleRate*d),b=c.createBuffer(1,n,c.sampleRate),arr=b.getChannelData(0);
-  for(let i=0;i<n;i++)arr[i]=(Math.random()*2-1)*(1-i/n);
-  const s=c.createBufferSource(),g=c.createGain();g.gain.value=vol;s.buffer=b;s.connect(g).connect(c.destination);s.start();
- }
- shot(){const kind=WPN[game.weapon].kind,heavy=['shotgun','minigun','cannon'].includes(game.weapon);
-   if(kind==='flame'){this.noise(.09,.055);this.tone(110,.10,'sawtooth',.045,75);return}
-   if(kind==='laser'){this.tone(game.weapon==='cannon'?220:500,heavy?.32:.16,'sawtooth',heavy?.10:.062,heavy?62:900);return}
-   this.noise(heavy?.22:.10,heavy?.22:.13);this.tone(heavy?72:155,heavy?.18:.105,'sawtooth',heavy?.09:.06,40)}
- enemy(){this.tone(rand(270,530),.26,'sawtooth',.045,140)}
- hurt(){this.tone(105,.18,'sawtooth',.12,59)}
- click(){this.tone(660,.065,'triangle',.045,390)}
+class Sound extends WeaponAudio {
+ shot(){this.fire(game.weapon)}
 }
 const sound=new Sound();
 const NAV={step:.88,cols:Math.floor((MAXX-MINX)/.88),rows:Math.floor((MAXZ-MINZ)/.88),dist:[],at:-20,cell:-1};
@@ -474,44 +459,28 @@ function hitEnemy(e,part,dmg,point,dir){
  updateHUD();
 }
 function ammoFlash(){flash.visible=true;game.cooldown=.07}
-function tracer(a,b){
- const g=new THREE.BufferGeometry().setFromPoints([a,b]),m=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xffce85,transparent:true,opacity:.55}));
- scene.add(m);particles.push({mesh:m,life:.06,static:true});
-}
-function laserBeam(a,b,heavy=false){
- const v=b.clone().sub(a),len=v.length(),mid=a.clone().addScaledVector(v,.5);
- if(len<.01)return;
- for(const outer of [false,true]){
-   const size=outer?(heavy?.17:.095):(heavy?.065:.027);
-   const mat=new THREE.MeshBasicMaterial({color:heavy?(outer?0xae43ed:0xffc7fa):(outer?0x4decef:0x9bfff1),transparent:true,opacity:outer?.24:.96,depthWrite:false});
-   const beam=new THREE.Mesh(new THREE.CylinderGeometry(size,size,len,7),mat);
-   beam.position.copy(mid);beam.quaternion.setFromUnitVectors(V(0,1,0),v.clone().normalize());
-   scene.add(beam);particles.push({mesh:beam,life:heavy?.16:.105,static:true});
- }
-}
+function tracer(start,end,weapon){vfx.tracer(start,end,weapon)}
+function laserBeam(start,end,heavy=false){vfx.laser(start,end,heavy)}
 function flameShot(origin,forward,w){
- const source=origin.clone().addScaledVector(forward,1.1).add(V(0,-.15,0));
- for(let i=0;i<7;i++){
-   const pos=source.clone().addScaledVector(forward,rand(.1,2.0)).add(V(rand(-.3,.3),rand(-.17,.22),rand(-.3,.3)));
-   particlesAt(pos,1,i%3===0?0xffe579:i%2?0xff6b23:0xffa53e,rand(1.5,3.5));
- }
- for(const e of hostiles){
-   if(!e.alive)continue;
-   const middle=e.root.position.clone().add(V(0,e.kind==='crawler'?.65:1.12,0));
-   const delta=middle.clone().sub(origin),len=delta.length();
-   if(len>8.7||len<.2||delta.normalize().dot(forward)<.85)continue;
-   if(!visibility(camera.position.x,camera.position.z,e.root.position.x,e.root.position.z))continue;
-   if(e.lastFlame===undefined||game.elapsed-e.lastFlame>=.19){
-     e.lastFlame=game.elapsed;e.burning=Math.max(e.burning,2.4);e.burnClock=Math.max(.15,e.burnClock);
-     hitEnemy(e,'torso',w.damage,middle,forward);
-   }
- }
+  vfx.flames(vfx.muzzle(gun),forward);
+  for(const e of hostiles){
+    if(!e.alive)continue;
+    const middle=e.root.position.clone().add(V(0,e.kind==='crawler'?.65:1.12,0));
+    const delta=middle.clone().sub(origin),len=delta.length();
+    if(len>8.7||len<.2||delta.normalize().dot(forward)<.85)continue;
+    if(!visibility(camera.position.x,camera.position.z,e.root.position.x,e.root.position.z))continue;
+    if(e.lastFlame===undefined||game.elapsed-e.lastFlame>=.19){
+      e.lastFlame=game.elapsed;e.burning=Math.max(e.burning,2.4);e.burnClock=Math.max(.15,e.burnClock);
+      hitEnemy(e,'torso',w.damage,middle,forward);
+    }
+  }
 }
 function shoot(){
  if(game.phase!=='running')return;
  const w=WPN[game.weapon];if(game.elapsed-game.lastShot<w.rate)return;
  game.lastShot=game.elapsed;game.recoil=Math.min(.68,game.recoil+w.recoil);ammoFlash();sound.shot();
  const origin=camera.position.clone(),base=direction();scene.updateMatrixWorld(true);
+ const muzzle=vfx.muzzle(gun);if(w.kind!=='flame')vfx.casing(muzzle,game.weapon);
  if(w.kind==='flame'){flameShot(origin,base,w);return}
  for(let i=0;i<w.pellets;i++){
    const dir=base.clone().add(V(rand(-w.spread,w.spread),rand(-w.spread,w.spread),rand(-w.spread,w.spread))).normalize();
@@ -531,8 +500,8 @@ function shoot(){
      if(hits>=penetration)break;
    }
    if(!hits&&b)particlesAt(b.point,w.kind==='laser'?6:3,w.kind==='laser'?0x5ce9f3:0xf7d09c,1.6);
-   if(w.kind==='laser')laserBeam(origin.clone().addScaledVector(dir,.55),end,heavy);
-   else tracer(origin,end);
+   if(w.kind==='laser')laserBeam(muzzle,end,heavy);
+   else if(i<Math.min(w.pellets,3))tracer(muzzle,end,game.weapon);
  }
 }
 function grab(){
@@ -610,11 +579,11 @@ function start(){
  for(const d of doors){d.open=false;d.target=0;d.angle=0;d.pivot.rotation.y=0}
  clearActors();spawnEnemies();spawnProps();weapon(game.weapon);phase('running');updateHUD();lockMouse();toast('CONTAINMENT BREACH // FLOOR 01',2.7);subtitle('ELIMINATE ALL 12 GREMLINS');
 }
-function pause(){if(game.phase!=='running')return;game.trigger=false;phase('pause');document.exitPointerLock?.()}
+function pause(){if(game.phase!=='running')return;game.trigger=false;sound.stop();phase('pause');document.exitPointerLock?.()}
 function resume(){if(game.phase!=='pause')return;phase('running');sound.unlock();lockMouse()}
-function menu(){game.trigger=false;document.exitPointerLock?.();phase('menu')}
+function menu(){game.trigger=false;sound.stop();document.exitPointerLock?.();phase('menu')}
 function finish(success){
- if(game.phase!=='running')return;game.trigger=false;document.exitPointerLock?.();phase(success?'won':'lost');
+ if(game.phase!=='running')return;game.trigger=false;sound.stop();document.exitPointerLock?.();phase(success?'won':'lost');
  $('summary-tag').textContent=success?'FLOOR 01 // CLEARED':'FLOOR 01 // OPERATOR DOWN';
  $('summary-title').textContent=success?'FLOOR CLEAR':'OVERRUN';
  $('summary-desc').textContent=success?'No hostile ArcMap gremlins remain. The elevator is secured.':'You were overwhelmed. Re-arm and reclaim the office floor.';
@@ -674,6 +643,7 @@ function map(){
 function update(dt){
  if(game.phase!=='running')return;
  game.elapsed+=dt;movement(dt);makeFlow();updateEnemies(dt);updateProps(dt);updateDoors(dt);updateParticles(dt);
+  vfx.update(dt);sound.update(game.weapon,game.trigger,game.phase);
  if(game.trigger&&WPN[game.weapon].auto)shoot();
  // Infinite ammo on all weapon classes; never enter a reload state.
  if(game.cooldown>0){game.cooldown-=dt;if(game.cooldown<=0)flash.visible=false}
@@ -688,7 +658,7 @@ function pointer(){
  if(document.pointerLockElement!==canvas&&game.phase==='running')pause();
 }
 function choose(name){
- if(game.phase==='running'){weapon(name);toast('EQUIPPED // '+WPN[name].name)}
+ sound.stop();if(game.phase==='running'){weapon(name);toast('EQUIPPED // '+WPN[name].name)}
  else game.weapon=name;
  sound.click();
 }
@@ -736,4 +706,4 @@ function frame(time){
  update(dt);renderer.render(scene,camera);
 }
 requestAnimationFrame(frame);
-window.ARCMAP_OFFICE_DEBUG={game,WPN,renderer,scene,camera,hostiles,targets,props,colliders,start,shoot,damagePlayer,makeGremlin};
+window.ARCMAP_OFFICE_DEBUG={game,WPN,renderer,scene,camera,hostiles,targets,props,colliders,start,shoot,damagePlayer,makeGremlin,vfx,sound};
