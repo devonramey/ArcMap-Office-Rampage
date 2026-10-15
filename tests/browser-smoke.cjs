@@ -25,11 +25,25 @@ const server=http.createServer((req,res)=>{
   await page.locator('#launch').click();
   await page.waitForFunction('window.ARCMAP_OFFICE_DEBUG.game.phase==="running"',{timeout:10000});
   const summary=await page.evaluate(()=>{
-    const d=window.ARCMAP_OFFICE_DEBUG;const s=d.game;
-    return {phase:s.phase,weapon:s.weapon,ammo:s.ammo,enemies:d.hostiles.length,targets:d.targets.length,props:d.props.length,solid:d.colliders.length,renderer:!!d.renderer.getContext()};
+    const d=window.ARCMAP_OFFICE_DEBUG,s=d.game;
+    const keys=Object.keys(d.WPN),counts=[],initialAmmo=s.ammo;
+    for(let i=0;i<keys.length;i++){
+      const key=new KeyboardEvent('keydown',{bubbles:true,code:'Digit'+(i+1)});
+      document.dispatchEvent(key);
+      s.elapsed+=1;s.lastShot=-10;
+      d.shoot();
+      counts.push({name:s.weapon,ammo:s.ammo,damage:d.WPN[s.weapon].damage});
+    }
+    return {phase:s.phase,initialWeapon:'shotgun',initialAmmo,weapons:keys,counts,enemies:d.hostiles.length,targets:d.targets.length,props:d.props.length,solid:d.colliders.length,renderer:!!d.renderer.getContext()};
   });
-  assert.equal(summary.phase,'running');assert.equal(summary.weapon,'shotgun');
-  assert.equal(summary.ammo,8);assert.equal(summary.enemies,12);assert.ok(summary.targets>=12&&summary.props>=5&&summary.solid>30);
+  assert.equal(summary.phase,'running');assert.equal(summary.initialWeapon,'shotgun');
+  assert.equal(summary.initialAmmo,Infinity);
+  assert.deepEqual(summary.weapons,['rifle','shotgun','smg','flamethrower','minigun','laser','cannon']);
+  assert.equal(summary.counts.length,7);
+  for(const item of summary.counts){assert.equal(item.ammo,Infinity,'Ammo must never decrease: '+item.name);assert.ok(item.damage>=14);}
+  assert.equal(summary.enemies,12);assert.ok(summary.targets>=12&&summary.props>=5&&summary.solid>30);
+  assert.equal(await page.locator('#ammo').textContent(),'∞');
+  assert.equal(await page.locator('#reload-hint').textContent(),'NO RELOADS • INFINITE SUPPLY');
   await page.waitForTimeout(500);
   assert.deepEqual(errors,[],'Browser exceptions: '+errors.join('\n'));
   console.log('PASS - playable ArcMap FPS browser test:',JSON.stringify(summary));
