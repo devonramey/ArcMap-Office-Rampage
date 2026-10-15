@@ -440,8 +440,11 @@ function updateEnemies(dt){
 }
 function particlesAt(pos,count,color=0xf0b36d,power=2){
  for(let i=0;i<count&&particles.length<340;i++){
-  const m=box(scene,rand(.04,.13),rand(.04,.13),rand(.04,.13),new THREE.MeshBasicMaterial({color}),pos.x,pos.y,pos.z);
-  particles.push({mesh:m,vel:V(rand(-power,power),rand(.4,power),rand(-power,power)),life:rand(.3,.9)});
+  // Rounded sparks and impact droplets rather than placeholder cubes.
+  const size=rand(.025,.084);
+  const m=new THREE.Mesh(new THREE.SphereGeometry(size,7,5),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.88}));
+  m.position.copy(pos);scene.add(m);
+  particles.push({mesh:m,vel:V(rand(-power,power),rand(.4,power),rand(-power,power)),life:rand(.3,.72)});
  }
 }
 function hitEnemy(e,part,dmg,point,dir){
