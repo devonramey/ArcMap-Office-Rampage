@@ -15,18 +15,18 @@ const game={phase:'menu',weapon:'rifle',ammo:Infinity,reserve:Infinity,health:10
 const el={menu:$('menu'),pause:$('pause'),summary:$('summary'),hud:$('hud'),toast:$('toast'),health:$('health'),healthbar:$('healthbar'),ammo:$('ammo'),reserve:$('reserve'),weapon:$('weapon-name'),detail:$('objective-detail'),killbar:$('killbar'),clock:$('clock'),sub:$('subtitles'),hit:$('hitmarker'),vignette:$('damage-vignette'),map:$('minimap'),interaction:$('interaction'),reload:$('reload-hint')};
 const canvas=$('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(1.6,devicePixelRatio||1));
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(1.65,devicePixelRatio||1));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x14212c);scene.fog=new THREE.FogExp2(0x152431,.016);
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x14212c);scene.fog=new THREE.FogExp2(0x192a34,.012);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.06,110);
 camera.rotation.order='YXZ';scene.add(camera);
-const ambient=new THREE.HemisphereLight(0xa5d8ff,0x394135,1.95);scene.add(ambient);
-const sunlight=new THREE.DirectionalLight(0xcfe3fa,1.65);sunlight.position.set(-11,13,-15);
-sunlight.castShadow=true;sunlight.shadow.mapSize.set(1024,1024);
+const ambient=new THREE.HemisphereLight(0xa5d8ff,0x4b4441,1.45);scene.add(ambient);
+const sunlight=new THREE.DirectionalLight(0xf0e2cb,1.24);sunlight.position.set(-11,13,-15);
+sunlight.castShadow=true;sunlight.shadow.mapSize.set(2048,2048);
 sunlight.shadow.camera.left=-26;sunlight.shadow.camera.right=26;sunlight.shadow.camera.top=25;sunlight.shadow.camera.bottom=-25;scene.add(sunlight);
 const material=(color,roughness=.74,metalness=.08)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
-const plaster=material(0x647780,.92),wood=material(0x826e5b,.76),steel=material(0x8b979c,.42,.5),trim=material(0x223540,.43),chairMat=material(0x2b3c47,.91),screenMat=new THREE.MeshStandardMaterial({color:0x15323b,emissive:0x2896aa,emissiveIntensity:.30,roughness:.35});
+const plaster=material(0x85919a,.93),wood=material(0x917663,.63),steel=material(0x8b979c,.32,.65),trim=material(0x28333b,.43),chairMat=material(0x263139,.91),screenMat=new THREE.MeshStandardMaterial({color:0x15323b,emissive:0x2896aa,emissiveIntensity:.30,roughness:.35});
 const glass=new THREE.MeshPhysicalMaterial({color:0xc7e5f2,transparent:true,opacity:.28,metalness:.08,roughness:.19,side:THREE.DoubleSide,depthWrite:false});
 const colliders=[],solidMeshes=[],hostiles=[],targets=[],props=[],particles=[],doors=[],keys=new Set();
 let carried=null;
@@ -49,7 +49,20 @@ function label(text,w=3,h=.37){
 }
 function office(){
  box(scene,40,.36,36,material(0x212e37,.96),0,-.17,0);
- box(scene,39.3,.025,35.5,material(0x42525a,.98),0,.004,0);
+ // Procedural carpet fabric, without remote textures or asset downloads.
+ const carpetCanvas=document.createElement('canvas');carpetCanvas.width=256;carpetCanvas.height=256;
+ const cc=carpetCanvas.getContext('2d'),pix=cc.createImageData(256,256);
+ let seed=20261015;const noise=()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296};
+ for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+   const i=(y*256+x)*4,thread=((x%4===0||y%6===0)?-9:0),n=noise()*24-12;
+   pix.data[i]=Math.max(0,91+n+thread);pix.data[i+1]=Math.max(0,102+n+thread);
+   pix.data[i+2]=Math.max(0,105+n+thread);pix.data[i+3]=255;
+ }
+ cc.putImageData(pix,0,0);const carpet=new THREE.CanvasTexture(carpetCanvas);
+ carpet.wrapS=THREE.RepeatWrapping;carpet.wrapT=THREE.RepeatWrapping;carpet.repeat.set(25,22);
+ carpet.colorSpace=THREE.SRGBColorSpace;carpet.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
+ box(scene,39.3,.025,35.5,new THREE.MeshStandardMaterial({map:carpet,roughness:.99,metalness:0}),0,.004,0);
+
  const seam=material(0x283b43,.99);
  for(let x=-19;x<=19;x+=2)box(scene,.014,.006,35.5,seam,x,.020,0);
  for(let z=-17;z<=17;z+=2)box(scene,39.3,.006,.014,seam,0,.020,z);
@@ -62,8 +75,8 @@ function office(){
  for(let x=-19;x<=19;x+=2)box(scene,.022,.018,35.4,material(0x445966),x,3.32,0);
  for(let z=-17;z<=17;z+=2)box(scene,39,.018,.022,material(0x445966),0,3.32,z);
  for(let x=-15;x<=18;x+=8)for(let z=-14;z<=14;z+=8){
-  box(scene,2.35,.035,.57,new THREE.MeshBasicMaterial({color:0xe1f4fc}),x,3.27,z);
-  const light=new THREE.PointLight(0xe2f0fe,11,11,2);light.position.set(x,3.1,z);scene.add(light);
+  box(scene,2.35,.035,.57,new THREE.MeshBasicMaterial({color:0xfff2dd}),x,3.27,z);
+  const light=new THREE.PointLight(0xf8e6d2,6,12,2);light.position.set(x,3.1,z);scene.add(light);
  }
  for(let x of [-14,-7,8,15]){
   const frame=box(scene,4.2,2.2,.12,trim,x,1.86,-17.32);
@@ -129,6 +142,48 @@ function office(){
  box(scene,1.4,.9,.60,steel,17,.45,16,true);
  box(scene,.46,.64,.46,new THREE.MeshStandardMaterial({color:0x7eb4d2,transparent:true,opacity:.65}),17,1.18,16,true);
  const poster=label('COFFEE IS NOT A WORKFLOW',3.3,.35);poster.position.set(14.5,2.6,17.48);poster.rotation.y=Math.PI;scene.add(poster);
+
+ // Richer semi-realistic office detailing: wall kick-plates, cable ducting,
+ // emergency signage, diffused lighting and structural trim.
+ const baseboard=material(0x48505a,.55,.31),crown=material(0xb1b3ad,.74),satin=material(0xa1a9ad,.38,.5);
+ for(const z of [-17.45,17.45]){
+   box(scene,39.25,.15,.07,baseboard,0,.09,z);
+   box(scene,39.25,.08,.09,crown,0,3.18,z);
+ }
+ for(const x of [-19.45,19.45]){
+   box(scene,.07,.15,35.0,baseboard,x,.09,0);
+   box(scene,.10,.08,35.0,crown,x,3.18,0);
+ }
+ for(let x=-17;x<=17;x+=8){
+   const fixture=new THREE.Group();fixture.position.set(x,3.22,1.5);scene.add(fixture);
+   box(fixture,1.9,.03,.48,steel,0,0,0);
+   box(fixture,1.72,.017,.36,new THREE.MeshBasicMaterial({color:0xfff3db}),0,-.03,0);
+   for(const side of [-1,1])box(fixture,.08,.09,.49,trim,side*.93,-.03,0);
+ }
+ const glassFrame=material(0x4a5660,.31,.69);
+ for(let x=-18.25;x<-8.2;x+=2.25){
+   box(scene,.047,2.95,.19,glassFrame,x,1.51,-5.99);
+   box(scene,2.15,.05,.22,glassFrame,x+1.1,2.94,-5.99);
+ }
+ // Wall-mounted notices, evacuation sign and office utility details.
+ for(const [x,z,msg,width,rot] of [
+   [-12,17.41,'SAFETY FIRST / GIS SECOND',3.6,Math.PI],
+   [11,17.41,'SYSTEMS ENGINEERING',3.5,Math.PI],
+   [-12,-17.27,'FIRE ESCAPE →',2.8,0],
+   [9,-17.27,'SERVER OPERATIONS',3.15,0]
+ ]){
+   const notice=label(msg,width,.25);notice.position.set(x,2.15,z);notice.rotation.y=rot;scene.add(notice);
+   box(scene,width+.14,.35,.05,baseboard,x,2.15,z+(rot?-.04:.04));
+ }
+ for(const x of [-16,-7,6,15]){
+   box(scene,.29,.31,.05,baseboard,x,.48,17.35);
+   box(scene,.052,.10,.06,satin,x-.07,.48,17.30);
+   box(scene,.052,.10,.06,satin,x+.07,.48,17.30);
+ }
+ // Fluorescent spill and dust-filtered light cones add depth without heavy postprocessing.
+ const haze=new THREE.PointLight(0x7aa6c7,1.9,16,2);haze.position.set(-10,2.7,3);scene.add(haze);
+ const amber=new THREE.PointLight(0xffae78,2.1,15,2);amber.position.set(14,2.3,-10);scene.add(amber);
+
 }
 function blocked(x,z,r=.34){
  if(x<MINX+r||x>MAXX-r||z<MINZ+r||z>MAXZ-r)return true;
