@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#091019">
+<title>ArcMap: Office Rampage | Prototype 0.1</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+<canvas id="world" aria-label="Three-dimensional first person shooter"></canvas>
+<div id="noise" aria-hidden="true"></div>
+<section id="menu" class="screen open">
+ <div class="menu-content">
+ <div class="eyebrow"><span class="live-led"></span> ARCMAP INTERVENTION UNIT <span class="slash">/</span> PROTOTYPE 0.1</div>
+ <h1>OFFICE<br><em>RAMPAGE</em></h1>
+ <p class="lede">An entire floor has been overrun by hostile ArcMap gremlins. Pick your weapon. Clear the office. Make it to the elevator.</p>
+ <div class="mode-label"><span>01</span> CHOOSE YOUR LOADOUT</div>
+ <div id="loadout" class="loadout" role="group" aria-label="Starting weapons">
+  <button class="weapon-tile selected" data-weapon="rifle" aria-pressed="true"><span class="tile-num">01 / ALL-ROUNDER</span><span class="weapon-icon">⌁</span><strong>ASSAULT RIFLE</strong><span class="tile-meta">30 ROUNDS • AUTO</span></button>
+  <button class="weapon-tile" data-weapon="shotgun" aria-pressed="false"><span class="tile-num">02 / ROOM CLEARER</span><span class="weapon-icon">⟿</span><strong>PUMP SHOTGUN</strong><span class="tile-meta">8 SHELLS • SPREAD</span></button>
+  <button class="weapon-tile" data-weapon="smg" aria-pressed="false"><span class="tile-num">03 / SPEED</span><span class="weapon-icon">≋</span><strong>COMPACT SMG</strong><span class="tile-meta">40 ROUNDS • RAPID</span></button>
+  <button class="weapon-tile" data-weapon="revolver" aria-pressed="false"><span class="tile-num">04 / PRECISION</span><span class="weapon-icon">✴</span><strong>HEAVY REVOLVER</strong><span class="tile-meta">6 ROUNDS • HIGH IMPACT</span></button>
+ </div>
+ <button id="launch" class="launch"><span>DEPLOY INTO OFFICE</span><span class="launch-arrow">↗</span></button>
+ <div class="menu-foot"><span>NO DOWNLOADS · DESKTOP CHROME / EDGE</span><span>ARROW KEYS + MOUSE</span></div>
+ </div>
+ <aside class="mission-card"><span class="mission-indicator">LIVE INCIDENT // 001</span><strong>THE CUBICLE FLOOR</strong><span>HOSTILE SOFTWARE ACTIVITY DETECTED</span><div class="mission-line"></div><div class="mission-stats"><div><b>12</b><small>HOSTILES</small></div><div><b>01</b><small>FLOOR</small></div><div><b>04</b><small>LOADOUTS</small></div></div><p>Building evacuation confirmed. Clear all hostiles to release the elevator security lock.</p></aside>
+</section>
+<section id="hud" class="hidden">
+ <div class="top-bar"><div class="hud-mark"><span class="live-led"></span> ARCMAP // OFFICE RAMPAGE <b>FLOOR 01</b></div><div class="hud-top-right"><span id="clock">00:00</span><span class="difficulty">INCIDENT ACTIVE</span></div></div>
+ <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker">×</div><div id="damage-vignette"></div>
+ <div class="objective"><span class="objective-tag">CURRENT DIRECTIVE</span><strong>ELIMINATE ALL HOSTILES</strong><p id="objective-detail">The elevator is in lockdown</p><div class="objective-progress"><span id="killbar"></span></div></div>
+ <div class="mini"><div class="mini-head"><span>FLOOR PLAN</span><span>01 / 01</span></div><canvas id="minimap" width="180" height="140"></canvas></div>
+ <div id="interaction" class="interaction hidden">[ENTER] OPEN DOOR</div><div id="combo" class="combo hidden"></div><div id="subtitles" class="subtitles"></div>
+ <div class="bottom-hud"><div class="health-panel"><small>OPERATOR CONDITION</small><div><b id="health">100</b><span>HEALTH</span></div><div class="health-track"><i id="healthbar"></i></div></div><div class="ammo-panel"><small id="weapon-name">ASSAULT RIFLE</small><div class="ammo-line"><strong id="ammo">30</strong><span>/</span><b id="reserve">180</b></div><small id="reload-hint">[DELETE / R] RELOAD</small></div></div>
+ <div class="in-game-hint">↑ ↓ ← → MOVE <b>·</b> MOUSE LOOK / FIRE <b>·</b> RMB GRAB / THROW <b>·</b> RIGHT SHIFT SPRINT <b>·</b> ENTER INTERACT <b>·</b> ESC PAUSE</div>
+</section>
+<section id="pause" class="screen modal hidden"><div class="modal-panel"><div class="eyebrow">COMBAT SUSPENDED</div><h2>PAUSED</h2><p>You're still in the building. The gremlins are waiting.</p><button id="resume" class="launch">RESUME OPERATION ↗</button><button id="restart-pause" class="ghost">RESTART FLOOR</button><button id="menu-pause" class="ghost">RETURN TO LOADOUT</button><p class="hint">Click Resume to capture the mouse again.</p></div></section>
+<section id="summary" class="screen modal hidden"><div class="modal-panel"><div id="summary-tag" class="eyebrow">MISSION REPORT</div><h2 id="summary-title">FLOOR CLEAR</h2><p id="summary-desc">No ArcMap gremlins remain.</p><div class="results"><div><small>ELIMINATED</small><strong id="result-kills">12</strong></div><div><small>TIME</small><strong id="result-time">00:00</strong></div><div><small>HEALTH LEFT</small><strong id="result-health">100</strong></div></div><button id="replay" class="launch">PLAY AGAIN ↗</button><button id="summary-menu" class="ghost">CHOOSE ANOTHER WEAPON</button></div></section>
+<div id="toast" aria-live="polite"></div>
+</div><script type="module" src="game.js"></script></body></html>
