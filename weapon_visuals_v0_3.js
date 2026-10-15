@@ -23,7 +23,7 @@ export class WeaponVisuals {
   this.scene.add(mesh);this.effects.push({mesh,...data});
   return mesh;
  }
- remove(p){this.scene.remove(p.mesh);p.mesh.material?.dispose?.()}
+ remove(p){this.scene.remove(p.mesh);p.mesh.material?.dispose?.();if(p.tail){this.scene.remove(p.tail);p.tail.material?.dispose?.()}}
  muzzle(gun){
   gun.updateWorldMatrix(true,false);
   return gun.localToWorld(new this.T.Vector3(0,-.065,gun.userData.muzzleZ??-1.28));
@@ -44,11 +44,13 @@ export class WeaponVisuals {
   const bullet=new T.Mesh(this.tracerGeometry,mat);
   bullet.scale.set(.027,.027,weapon==='shotgun'?.05:.085);bullet.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),forward);
   bullet.position.copy(muzzle).addScaledVector(forward,.065);
-  const streak=new T.Mesh(this.streakGeometry,new T.MeshBasicMaterial({color:weapon==='minigun'?0xffd79a:0xffe6ad,transparent:true,opacity:.85,blending:T.AdditiveBlending,depthWrite:false}));
-  streak.scale.set(.026,.32,.026);
+  const streak=new T.Mesh(this.streakGeometry,new T.MeshBasicMaterial({color:weapon==='minigun'?0xffd79a:0xffe6ad,transparent:true,opacity:.92,blending:T.AdditiveBlending,depthWrite:false}));
+  streak.scale.set(.019,weapon==='shotgun'?.34:.65,.019);
   streak.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),forward);
-  bullet.add(streak);streak.position.z=-1.1;
-  this.add(bullet,{type:'tracer',life:Math.max(.12,Math.min(.29,travel/speed+.06)),maxLife:Math.max(.12,Math.min(.29,travel/speed+.06)),vel:forward.clone().multiplyScalar(speed),end:end.clone(),forward});
+  streak.position.copy(bullet.position).addScaledVector(forward,-.21);
+  this.scene.add(streak);
+  const lifetime=Math.max(.12,Math.min(.29,travel/speed+.06));
+  this.add(bullet,{type:'tracer',life:lifetime,maxLife:lifetime,vel:forward.clone().multiplyScalar(speed),end:end.clone(),forward,tail:streak});
   this.stats.tracers++;
   this.glow(muzzle,.48,0xffce82,.10);
   if(this.effects.length>225)this.effects[0].life=0;
@@ -104,8 +106,8 @@ export class WeaponVisuals {
     if(p.type==='tracer'){
       const next=p.mesh.position.clone().addScaledVector(p.vel,dt);
       if(next.clone().sub(p.end).dot(p.forward)>0){p.life=0;continue}
-      p.mesh.position.copy(next);p.mesh.material.opacity=Math.min(1,fraction*4);
-      p.mesh.rotation.z+=dt*3;
+      p.mesh.position.copy(next);p.mesh.rotation.z+=dt*3;
+      if(p.tail){p.tail.position.copy(next).addScaledVector(p.forward,-.21);p.tail.material.opacity=Math.min(.9,fraction*3)}
     } else if(p.type==='flame'){
       p.mesh.position.addScaledVector(p.vel,dt);
       p.mesh.position.y+=dt*.52;
