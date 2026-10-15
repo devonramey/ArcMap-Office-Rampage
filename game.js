@@ -1,9 +1,10 @@
-/* ArcMap Office Rampage v0.3. Three.js FPS, no server-side gameplay. */
+/* ArcMap Office Rampage v0.4. Three.js FPS, no server-side gameplay. */
 import * as THREE from './vendor/three.module.js';
 import {WeaponVisuals} from './weapon_visuals_v0_3.js';
 import {WeaponAudio} from './weapon_audio_v0_3.js';
+import {FLOORS,CAMPAIGN_TOTAL,buildAlternateFloor} from './office_levels_v0_4.js';
 const $=s=>document.getElementById(s), clamp=THREE.MathUtils.clamp,rand=(a,b)=>a+Math.random()*(b-a), V=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
-const TOTAL=12,MINX=-19.4,MAXX=19.4,MINZ=-17.4,MAXZ=17.4;
+const MINX=-19.4,MAXX=19.4,MINZ=-17.4,MAXZ=17.4;
 const WPN={
  rifle:{name:'ASSAULT RIFLE',damage:44,rate:.101,spread:.009,pellets:1,recoil:.19,auto:true,kind:'ballistic'},
  shotgun:{name:'SEMI-AUTO SHOTGUN',damage:25,rate:.32,spread:.073,pellets:9,recoil:.40,auto:false,kind:'ballistic'},
@@ -13,7 +14,7 @@ const WPN={
  laser:{name:'LASER RIFLE',damage:80,rate:.19,spread:.003,pellets:1,recoil:.055,auto:true,kind:'laser'},
  cannon:{name:'HEAVY LASER CANNON',damage:165,rate:.55,spread:0,pellets:1,recoil:.30,auto:true,kind:'laser'}
 };
-const game={phase:'menu',weapon:'rifle',ammo:Infinity,reserve:Infinity,health:100,kills:0,elapsed:0,lastShot:-10,reloading:0,trigger:false,yaw:0,pitch:0,velocityY:0,grounded:true,recoil:0,bob:0,combo:0,hitAt:0,hitTime:0,damageTime:0,toastTime:0,subtitleTime:0,nearDoor:null,exitReady:false};
+const game={phase:'menu',weapon:'rifle',ammo:Infinity,reserve:Infinity,health:100,kills:0,campaignKills:0,completedFloors:0,floor:1,total:FLOORS[0].spawns.length,elapsed:0,lastShot:-10,reloading:0,trigger:false,yaw:0,pitch:0,velocityY:0,grounded:true,recoil:0,bob:0,combo:0,hitAt:0,hitTime:0,damageTime:0,toastTime:0,subtitleTime:0,nearDoor:null,exitReady:false};
 const el={menu:$('menu'),pause:$('pause'),summary:$('summary'),hud:$('hud'),toast:$('toast'),health:$('health'),healthbar:$('healthbar'),ammo:$('ammo'),reserve:$('reserve'),weapon:$('weapon-name'),detail:$('objective-detail'),killbar:$('killbar'),clock:$('clock'),sub:$('subtitles'),hit:$('hitmarker'),vignette:$('damage-vignette'),map:$('minimap'),interaction:$('interaction'),reload:$('reload-hint')};
 const canvas=$('world');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -31,6 +32,7 @@ const material=(color,roughness=.74,metalness=.08)=>new THREE.MeshStandardMateri
 const plaster=material(0x85919a,.93),wood=material(0x917663,.63),steel=material(0x8b979c,.32,.65),trim=material(0x28333b,.43),chairMat=material(0x263139,.91),screenMat=new THREE.MeshStandardMaterial({color:0x15323b,emissive:0x2896aa,emissiveIntensity:.30,roughness:.35});
 const glass=new THREE.MeshPhysicalMaterial({color:0xc7e5f2,transparent:true,opacity:.28,metalness:.08,roughness:.19,side:THREE.DoubleSide,depthWrite:false});
 const colliders=[],solidMeshes=[],hostiles=[],targets=[],props=[],particles=[],doors=[],keys=new Set();
+let activeFloorNodes=[],loadedFloor=0;
 let carried=null;
 const raycaster=new THREE.Raycaster();
 function box(parent,w,h,d,m,x,y,z,casts=false){
@@ -254,15 +256,17 @@ function makeGremlin(x,z,i,kind){
  hostiles.push(e);return e;
 }
 function spawnEnemies(){
- const spawn=[[-13,8],[-6.4,8],[1.3,8],[11.4,8],[-16,1],[6.6,.8],[-2,-5],[5,-5],[-17,-10],[5,-11],[9.5,-7],[-3,-14]];
- spawn.forEach(([x,z],i)=>makeGremlin(x,z,i,i===9?'brute':i===4||i===10?'crawler':'runner'));
+ FLOORS[game.floor-1].spawns.forEach(([x,z,kind],i)=>{
+   if(blocked(x,z,.25))throw Error('Floor '+game.floor+' enemy spawn collides at '+x+','+z);
+   makeGremlin(x,z,i,kind);
+ });
 }
 function clearActors(){for(const e of hostiles)scene.remove(e.root);hostiles.length=0;targets.length=0;
  for(const p of props)scene.remove(p.mesh);props.length=0;carried=null;
  for(const p of particles)scene.remove(p.mesh);particles.length=0;
 }
 function spawnProps(){
- const items=[[-5.5,14,'crate'],[6.7,10.8,'monitor'],[0.6,4,'printer'],[-17,-4,'crate'],[10,-9,'monitor'],[-3,-12.5,'printer']];
+ const items=FLOORS[game.floor-1].props;
  for(const [x,z,type] of items){
   const g=new THREE.Group();g.position.set(x,type==='monitor'?.6:.27,z);
   if(type==='crate')box(g,.56,.48,.62,wood,0,0,0,true);
@@ -463,12 +467,12 @@ function hitEnemy(e,part,dmg,point,dir){
  particlesAt(point,Math.min(14,Math.ceil(dmg/5)),0xef6670,2.2);
   if(game.weapon!=='flamethrower')vfx.glow(point,game.weapon==='cannon'?.8:.27,game.weapon==='cannon'?0xd1a3ff:0xffc19b,.12);
   sound.enemy();
- if(e.hp<=0){e.alive=false;game.kills++;game.combo++;game.hitAt=game.elapsed;
+ if(e.hp<=0){e.alive=false;game.kills++;game.campaignKills++;game.combo++;game.hitAt=game.elapsed;
   e.face.material.map=expression('dead');e.velocity.addScaledVector(dir,4.5);
   for(let i=targets.length-1;i>=0;i--)if(targets[i].userData.enemy===e)targets.splice(i,1);
   particlesAt(e.root.position.clone().add(V(0,1,0)),25,0xeaa26a,4);
   subtitle('ARCMAP GREMLIN ELIMINATED');
-  if(game.kills===TOTAL){game.exitReady=true;toast('ALL HOSTILES ELIMINATED // ELEVATOR UNLOCKED',4)}
+  if(game.kills===game.total){game.exitReady=true;toast('FLOOR '+String(game.floor).padStart(2,'0')+' SECURED // ELEVATOR UNLOCKED',4)}
  }
  updateHUD();
 }
@@ -571,41 +575,101 @@ function formatClock(t){return String(Math.floor(t/60)).padStart(2,'0')+':'+Stri
 function updateHUD(){
  el.health.textContent=Math.ceil(game.health);el.healthbar.style.width=game.health+'%';
  el.ammo.textContent='∞';el.reserve.textContent='UNLIMITED';el.weapon.textContent=WPN[game.weapon].name;
- el.detail.textContent=game.kills===TOTAL?'Elevator unlocked • Reach the exit':'Hostiles eliminated: '+game.kills+' / '+TOTAL+' • Elevator locked';
- el.killbar.style.width=(game.kills/TOTAL*100)+'%';el.reload.textContent='NO RELOADS • INFINITE SUPPLY';
+ el.detail.textContent=game.kills===game.total
+  ? (game.floor===FLOORS.length?'All floors cleared • Reach final elevator':'Elevator unlocked • Continue to floor '+(game.floor+1))
+  : 'Floor '+game.floor+' hostiles: '+game.kills+' / '+game.total+' • Campaign: '+game.campaignKills+'/'+CAMPAIGN_TOTAL;
+ el.killbar.style.width=(game.kills/game.total*100)+'%';el.reload.textContent='NO RELOADS • INFINITE SUPPLY';
 }
 function toast(s,t=1.7){el.toast.textContent=s;el.toast.classList.add('visible');game.toastTime=t}
 function subtitle(s,t=1.0){el.sub.textContent=s;game.subtitleTime=t}
 function phase(p){
  game.phase=p;el.menu.classList.toggle('hidden',p!=='menu');
+ $('floor-transition').classList.toggle('hidden',p!=='transition');
  el.pause.classList.toggle('hidden',p!=='pause');
  el.summary.classList.toggle('hidden',p!=='won'&&p!=='lost');
- el.hud.classList.toggle('hidden',p==='menu');
+ el.hud.classList.toggle('hidden',p==='menu'||p==='transition');
 }
 function weapon(name){
  if(!WPN[name])return;game.weapon=name;game.ammo=Infinity;game.reserve=Infinity;game.reloading=0;buildWeapon();updateHUD();
 }
 function lockMouse(){if(document.pointerLockElement!==canvas)canvas.requestPointerLock?.().catch(()=>toast('CLICK THE WORLD TO ACTIVATE MOUSE LOOK',3))}
-function start(){
- sound.unlock();game.health=100;game.kills=0;game.elapsed=0;game.lastShot=-20;game.yaw=0;game.pitch=0;
- game.grounded=true;game.velocityY=0;game.trigger=false;game.exitReady=false;game.combo=0;
+function clearFloorGeometry(){
+ for(const node of activeFloorNodes){
+   scene.remove(node);node.traverse(obj=>{if(obj.isMesh)obj.geometry?.dispose?.()});
+ }
+ activeFloorNodes=[];colliders.length=0;solidMeshes.length=0;doors.length=0;
+ NAV.dist=[];NAV.cell=-1;NAV.at=-20;
+}
+function buildFloor(number){
+ if(loadedFloor===number)return;
+ clearFloorGeometry();
+ const before=new Set(scene.children);
+ if(number===1)office();
+ else buildAlternateFloor(number,{THREE,scene,box,wall,solid,label,material,steel,trim,wood,glass,doors});
+ activeFloorNodes=scene.children.filter(obj=>!before.has(obj));loadedFloor=number;
+ scene.background.set(number===3?0x0c2029:number===2?0x30343a:0x14212c);
+ scene.fog.color.set(number===3?0x112b35:number===2?0x35373a:0x192a34);
+ scene.fog.density=number===3?.017:number===2?.012:.012;
+ ambient.intensity=number===3?1.05:number===2?1.4:1.45;
+ sunlight.intensity=number===3?.56:number===2?1.12:1.24;
+}
+function prepareFloor(number){
+ if(number<1||number>FLOORS.length)throw Error('Invalid floor '+number);
+ sound.stop();game.trigger=false;game.floor=number;game.total=FLOORS[number-1].spawns.length;
+ game.kills=0;game.exitReady=false;game.lastShot=-20;game.damageTime=0;game.recoil=0;
+ game.grounded=true;game.velocityY=0;game.yaw=0;game.pitch=0;game.bob=0;
+ game.toastTime=0;game.subtitleTime=0;game.cooldown=0;
+ if(flash)flash.visible=false;
+ keys.clear();carried=null;clearActors();vfx.clear();
+ buildFloor(number);
  camera.position.set(0,1.65,15.2);camera.rotation.set(0,0,0);
  for(const d of doors){d.open=false;d.target=0;d.angle=0;d.pivot.rotation.y=0}
- clearActors();spawnEnemies();spawnProps();weapon(game.weapon);phase('running');updateHUD();lockMouse();toast('CONTAINMENT BREACH // FLOOR 01',2.7);subtitle('ELIMINATE ALL 12 GREMLINS');
+ spawnEnemies();spawnProps();weapon(game.weapon);
+ const cfg=FLOORS[number-1];
+ $('hud-floor').textContent='FLOOR '+String(number).padStart(2,'0');
+ $('map-floor').textContent=String(number).padStart(2,'0')+' / '+String(FLOORS.length).padStart(2,'0');
+ $('floor-location').textContent=cfg.name;
+ $('floor-directive').textContent=number===FLOORS.length?'SECURE FINAL EXIT':'ELIMINATE ALL HOSTILES';
+ updateHUD();map();
+}
+function start(){
+ sound.unlock();game.health=100;game.campaignKills=0;game.completedFloors=0;game.elapsed=0;game.combo=0;
+ prepareFloor(1);phase('running');lockMouse();
+ toast('CONTAINMENT BREACH // FLOOR 01',2.8);subtitle('ELIMINATE ALL '+game.total+' GREMLINS');
+}
+function takeElevator(){
+ if(game.floor>=FLOORS.length){finish(true);return}
+ game.completedFloors=game.floor;
+ const next=FLOORS[game.floor];
+ game.trigger=false;sound.stop();phase('transition');document.exitPointerLock?.();
+ $('transition-floor').textContent='FLOOR '+String(next.number).padStart(2,'0');
+ $('transition-name').textContent=next.name;
+ $('transition-brief').textContent=next.brief;
+ $('transition-enemies').textContent=String(next.spawns.length);
+ $('transition-progress').textContent=game.completedFloors+' / '+FLOORS.length+' FLOORS SECURED';
+ $('transition-kills').textContent=game.campaignKills+' / '+CAMPAIGN_TOTAL+' GREMLINS ELIMINATED';
+}
+function continueFloor(){
+ if(game.phase!=='transition')return;
+ // Restore some health between floors, keeping survival stakes throughout campaign.
+ game.health=Math.min(100,game.health+30);
+ prepareFloor(game.floor+1);phase('running');sound.unlock();lockMouse();
+ toast('FLOOR '+String(game.floor).padStart(2,'0')+' // '+FLOORS[game.floor-1].name,3.1);
+ subtitle('CLEAR '+game.total+' HOSTILES TO UNLOCK THE ELEVATOR',2.5);
 }
 function pause(){if(game.phase!=='running')return;game.trigger=false;sound.stop();phase('pause');document.exitPointerLock?.()}
 function resume(){if(game.phase!=='pause')return;phase('running');sound.unlock();lockMouse()}
-function menu(){game.trigger=false;sound.stop();document.exitPointerLock?.();phase('menu')}
+function menu(){game.trigger=false;sound.stop();document.exitPointerLock?.();phase('menu');$('menu-campaign').textContent='03 FLOORS • '+CAMPAIGN_TOTAL+' HOSTILES'}
 function finish(success){
  if(game.phase!=='running')return;game.trigger=false;sound.stop();document.exitPointerLock?.();phase(success?'won':'lost');
- $('summary-tag').textContent=success?'FLOOR 01 // CLEARED':'FLOOR 01 // OPERATOR DOWN';
- $('summary-title').textContent=success?'FLOOR CLEAR':'OVERRUN';
- $('summary-desc').textContent=success?'No hostile ArcMap gremlins remain. The elevator is secured.':'You were overwhelmed. Re-arm and reclaim the office floor.';
- $('result-kills').textContent=game.kills;$('result-time').textContent=formatClock(game.elapsed);
+ $('summary-tag').textContent=success?'ALL '+FLOORS.length+' FLOORS // SECURED':'FLOOR '+String(game.floor).padStart(2,'0')+' // OPERATOR DOWN';
+ $('summary-title').textContent=success?'BUILDING CLEARED':'OVERRUN';
+ $('summary-desc').textContent=success?'All '+CAMPAIGN_TOTAL+' ArcMap gremlins eliminated across '+FLOORS.length+' floors. The office is yours.':'You reached Floor '+game.floor+' of '+FLOORS.length+'. Re-arm and try the campaign again.';
+ $('result-kills').textContent=game.campaignKills;$('result-time').textContent=formatClock(game.elapsed);
  $('result-health').textContent=Math.ceil(game.health);
 }
 function interact(){
- if(game.exitReady&&Math.hypot(camera.position.x,camera.position.z+16.8)<3.1){finish(true);return}
+ if(game.exitReady&&Math.hypot(camera.position.x,camera.position.z+16.8)<3.1){takeElevator();return}
  for(const d of doors){
   if(Math.hypot(camera.position.x-d.x,camera.position.z-d.z)<2.5){
    d.open=!d.open;d.target=d.open?Math.PI/2:0;sound.click();toast(d.open?'DOOR OPEN':'DOOR CLOSED');return;
@@ -619,7 +683,7 @@ function updateDoors(dt){
   if(Math.hypot(camera.position.x-d.x,camera.position.z-d.z)<2.5)close=d;
  }
  if(game.exitReady&&Math.hypot(camera.position.x,camera.position.z+16.8)<3.1){
-  el.interaction.textContent='[ENTER] TAKE ELEVATOR';el.interaction.classList.remove('hidden');
+  el.interaction.textContent=game.floor===FLOORS.length?'[ENTER] COMPLETE CAMPAIGN':'[ENTER] TAKE ELEVATOR TO FLOOR '+(game.floor+1);el.interaction.classList.remove('hidden');
  }else if(close){el.interaction.textContent=close.open?'[ENTER] CLOSE DOOR':'[ENTER] KICK OPEN DOOR';el.interaction.classList.remove('hidden')}
  else el.interaction.classList.add('hidden');
 }
@@ -683,12 +747,15 @@ document.querySelectorAll('[data-weapon]').forEach(b=>b.addEventListener('click'
 $('launch').addEventListener('click',start);$('resume').addEventListener('click',resume);
 $('restart-pause').addEventListener('click',start);$('menu-pause').addEventListener('click',menu);
 $('replay').addEventListener('click',start);$('summary-menu').addEventListener('click',menu);
+ $('continue-floor').addEventListener('click',continueFloor);
+ $('transition-menu').addEventListener('click',menu);
 document.addEventListener('pointerlockchange',pointer);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&game.phase==='running')pause()});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
 document.addEventListener('keydown',e=>{
  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
- keys.add(e.code);if(game.phase!=='running'||e.repeat)return;
+ keys.add(e.code);if(game.phase==='transition'&&e.code==='Enter'&&!e.repeat){continueFloor();return}
+ if(game.phase!=='running'||e.repeat)return;
  if(e.code==='Space'&&game.grounded){game.grounded=false;game.velocityY=6.5}
  // Reload deliberately disabled; infinite ammunition for every weapon.
  if(e.code==='Enter'||e.code==='KeyE')interact();
@@ -711,7 +778,7 @@ canvas.addEventListener('wheel',e=>{
  choose(a[(i+(e.deltaY>0?1:a.length-1))%a.length]);
 },{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-office();buildWeapon();phase('menu');updateHUD();
+buildFloor(1);buildWeapon();phase('menu');updateHUD();
 function frame(time){
  requestAnimationFrame(frame);const dt=Math.min(.045,Math.max(0,(time-(frame.last||time))*.001));frame.last=time;
  if(game.phase==='menu'){
@@ -720,4 +787,4 @@ function frame(time){
  update(dt);renderer.render(scene,camera);
 }
 requestAnimationFrame(frame);
-window.ARCMAP_OFFICE_DEBUG={game,WPN,renderer,scene,camera,hostiles,targets,props,colliders,start,shoot,damagePlayer,makeGremlin,vfx,sound};
+window.ARCMAP_OFFICE_DEBUG={game,WPN,renderer,scene,camera,hostiles,targets,props,colliders,doors,FLOORS,CAMPAIGN_TOTAL,start,shoot,damagePlayer,makeGremlin,hitEnemy,interact,takeElevator,continueFloor,prepareFloor,buildFloor,vfx,sound};
