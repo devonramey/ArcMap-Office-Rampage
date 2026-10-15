@@ -1,10 +1,12 @@
 name: Browser gameplay validation
 on:
   push:
-    branches: [main, development-v0.2-weapons, development-v0.3-projectiles-audio]
+    branches: [main, development-v0.4-multi-floor-campaign]
     paths-ignore:
       - 'tests/CI_RESULT.txt'
       - 'tests/CI_BROWSER_OUTPUT.txt'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
@@ -33,7 +35,7 @@ jobs:
           cat tests/CI_BROWSER_OUTPUT.txt
           exit "$code"
       - name: Record status in repository
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         env:
           SYNTAX: ${{ steps.syntax.outcome }}
           BROWSER: ${{ steps.browser.outcome }}
@@ -45,3 +47,9 @@ jobs:
           git commit -m 'Record latest Office Rampage browser test [skip ci]' || true
           git push origin HEAD:${GITHUB_REF_NAME}
           test "$SYNTAX" = success && test "$BROWSER" = success
+
+      - name: Require passing tests on pull requests
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          test "${{ steps.syntax.outcome }}" = success
+          test "${{ steps.browser.outcome }}" = success

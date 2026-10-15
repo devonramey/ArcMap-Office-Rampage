@@ -28,13 +28,13 @@ The game is entirely client-side and hosted as static files on GitHub Pages. It 
 
 Optional WASD movement and left Shift sprint are supported, but **arrow keys are the default layout**. Click **Deploy Into Office** to capture your mouse pointer.
 
-## Prototype features (v0.3)
+## Prototype features (v0.4)
 
 - Pregame loadout menu: **assault rifle**, **semi-automatic shotgun**, **SMG**, **flamethrower**, **minigun**, **laser rifle**, and **heavy laser cannon**. The revolver has been removed.
-- One furnished office floor: cubicles, workstations, conference space, filing cabinets, computers, plants, glass partitions, server racks, and fluorescent ceiling lighting.
-- **12 hostile ArcMap gremlins**, including runners, crawlers and one brute, with procedural faces and limbs.
+- **Three independently built office levels:** Cubicle Farm, Records & Break Room, and Server Operations. Each floor has distinct furnishings, lighting, obstacles, collision geometry, enemy arrangements and level signage.
+- **48 hostile ArcMap gremlins across the campaign:** 12 on Floor 1, 16 on Floor 2, and 20 on Floor 3, featuring runners, crawlers, and multiple brutes, with procedural faces and limbs.
 - Mouse aim, firearm muzzle effects, spreading shotgun pellets, weapon recoil, hit-part damage modifiers, and responsive health and infinite-ammo indicators.
-- AI office navigation, physics-inspired thrown objects, interactive door, minimap, combat objective, elevator exit, pause screen and mission results.
+- AI office navigation, physics-inspired thrown objects, interactive door, per-floor minimap and objectives, functional elevator transitions, a floor briefing screen, persistent weapon and cumulative kills, +30 health between floors, pause screen, and final three-floor mission results.
 - **Unlimited ammunition across all seven weapons. No magazines, reloads, ammo pickups, fuel limits or energy depletion.** Hold the mouse button for automatic weapons; click repeatedly for the semi-auto shotgun.
 - Fire-based cone damage and burn-over-time, spinning six-barrel minigun, penetrating laser beams, and substantially stronger firearm damage.
 - More detailed procedural first-person weapon models with barrel assemblies, rails, magazines, ammunition tanks, laser coils, sights, and hands.
@@ -55,11 +55,22 @@ Optional WASD movement and left Shift sprint are supported, but **arrow keys are
 - Existing infinite ammunition, no reloads, arrow-key movement, mouse aim and object grabbing remain intact.
 - Project modules: `weapon_visuals_v0_3.js` and `weapon_audio_v0_3.js`, both loaded as local ES modules, offline-capable with the rest of the repository.
 
-### Level roadmap
+### v0.4 three-floor campaign
 
-- **v0.4 target:** 3 distinct playable floors, elevator transitions, different layouts and enemy encounters.
-- **v0.5 target:** server room and records floor, new gremlin varieties.
-- **v0.6 target:** executive floor, boss and campaign completion. These are planned additions and are **not implemented in v0.3**.
+After eliminating all gremlins on the current floor, find the elevator at the far end of the building (north side on the minimap) and press **Enter**. The next-floor briefing offers a **Continue** action before you resume fighting.
+
+- **Floor 01 – The Cubicle Farm:** Original geospatial operations floor with desks and conference rooms. **12** enemies.
+- **Floor 02 – Records & Break Room:** Filing shelves, employee kitchen counters, vending machines, and warm interior lighting. **16** enemies.
+- **Floor 03 – Server Operations:** Data center aisles, illuminated racks, security stations, blue/red emergency lighting, and the final exit. **20** enemies.
+
+Campaign-wide eliminations are tracked separately from the current floor's progress. Weapons and remaining health carry over. An elevator ride replenishes **30 health (maximum 100)**. The mission is won only after clearing **all 48** enemies and using the final elevator. Replay starts a new three-floor campaign.
+
+The implementation uses data-driven floor descriptions in `office_levels_v0_4.js` and destroys previous floor geometry when transitioning. Browser tests validate all three floors and victory flow. Existing weapon behavior remains unchanged.
+
+### Future roadmap
+
+- **v0.5:** Expanded variety of hostile gremlin abilities, advanced navigation and interactive level events.
+- **v0.6:** Executive boss, expanded campaign, and richer story/ending content. These are future goals, not yet shipped.
 
 ## Technology and local testing
 

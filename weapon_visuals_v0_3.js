@@ -132,5 +132,9 @@ export class WeaponVisuals {
     }
   }
  }
+ clear(){
+  for(const p of this.effects)this.remove(p);
+  this.effects.length=0;
+ }
  get active(){return this.effects.length}
 }
