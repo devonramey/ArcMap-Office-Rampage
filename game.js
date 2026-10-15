@@ -359,8 +359,17 @@ function buildWeapon(){
  if(w==='cannon'){box(gun,.31,.25,.57,steelDark,0,-.06,-.84,true);gunTube(gun,.12,.28,violet,0,-.05,-1.29,12);}
  if(w==='rifle'||w==='smg')gunTube(gun,w==='rifle'?.06:.072,len*.69,steelDark,0,-.062,-len*.89,12);
  const muzzle=w==='minigun'?-1.40:w==='flamethrower'?-1.32:w==='cannon'?-1.43:w==='shotgun'?-1.50:w==='laser'?-1.42:-len*1.22;
- flash=new THREE.Mesh(new THREE.SphereGeometry(w==='shotgun'?.15:heavy?.14:.088,10,6),new THREE.MeshBasicMaterial({color:w==='laser'?0x65ffed:w==='cannon'?0xffa0ed:w==='flamethrower'?0xff9d2f:0xffd0a0,transparent:true,opacity:.95}));
- flash.position.set(0,-.06,muzzle);flash.visible=false;gun.add(flash);
+ // Short-lived star-shaped muzzle flash with an illuminated cone, replacing the old glowing ball.
+ flash=new THREE.Group();flash.position.set(0,-.06,muzzle);flash.visible=false;gun.add(flash);
+ const fireColor=w==='laser'?0x65ffed:w==='cannon'?0xfab0f9:w==='flamethrower'?0xff9d2f:0xffd0a0;
+ const bright=new THREE.MeshBasicMaterial({color:fireColor,transparent:true,opacity:.94,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+ for(let i=0;i<4;i++){
+   const blade=new THREE.Mesh(new THREE.ConeGeometry(w==='shotgun'?.16:heavy?.14:.095,w==='flamethrower'?.68:.4,3),bright);
+   blade.rotation.set(-Math.PI/2,0,i*Math.PI/4);
+   blade.position.z=-.16;flash.add(blade);
+ }
+ const flareGlow=new THREE.PointLight(fireColor,w==='shotgun'?1.8:1.15,3.0,2);
+ flareGlow.position.z=-.17;flash.add(flareGlow);
   gun.userData.muzzleZ=muzzle;
  // Gloved support hand and forearm for a recognizable first-person held-weapon silhouette.
  const glove=material(0x292f31,.94),sleeve=material(0x485762,.85);
@@ -451,7 +460,9 @@ function hitEnemy(e,part,dmg,point,dir){
  if(!e.alive)return;
  e.hp-=dmg*(part==='head'?1.7:part==='leg'?.75:1);e.stun=.14;e.hit=.4;e.face.material.map=expression('hurt');
  e.velocity.addScaledVector(dir,Math.min(4,dmg*.045));game.hitTime=.18;
- particlesAt(point,Math.min(14,Math.ceil(dmg/5)),0xef6670,2.2);sound.enemy();
+ particlesAt(point,Math.min(14,Math.ceil(dmg/5)),0xef6670,2.2);
+  if(game.weapon!=='flamethrower')vfx.glow(point,game.weapon==='cannon'?.8:.27,game.weapon==='cannon'?0xd1a3ff:0xffc19b,.12);
+  sound.enemy();
  if(e.hp<=0){e.alive=false;game.kills++;game.combo++;game.hitAt=game.elapsed;
   e.face.material.map=expression('dead');e.velocity.addScaledVector(dir,4.5);
   for(let i=targets.length-1;i>=0;i--)if(targets[i].userData.enemy===e)targets.splice(i,1);
